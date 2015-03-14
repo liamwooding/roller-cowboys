@@ -11,12 +11,10 @@ var isHost = false
 var interpolationBuffer = []
 var framesToInterpolate = 0
 var timeDiffs = []
-var avgTimeDiff = 0
 var inputIndex = 0
 var inputBuffer = []
-var cpuScore
 
-var update = simpleUpdate
+var update = simpleInterpolatedSnapshotsUpdate
 var handleInput = simpleHandleInput
 
 Meteor.startup(function () {
@@ -28,16 +26,11 @@ Meteor.startup(function () {
       Accounts.createUser({
         username: localStorage.uuid,
         password: Config.defaultPassword
-      }, function (er) {
+      }, function () {
         loggedIn()
       })
     } else console.error(er)
   })
-
-  var keepAlive = Meteor.setInterval(function () {
-    var thisPlayer = Players.findOne({ username: localStorage.uuid })
-    if (thisPlayer) Players.update(thisPlayer._id, { $set: { lastSeen: Date.now() } })
-  }, 1000)
 })
 
 Template.game.helpers({
@@ -50,85 +43,41 @@ Template.game.helpers({
 });
 
 Template.game.rendered = function () {
-  cpuTest(function (score) {
-    console.log('CPU score is', score)
-    var dbPlayer = Players.findOne({ username: localStorage.uuid })
-    if (dbPlayer) Players.update(dbPlayer._id, { $set: { cpuScore: score } })
-
-    Meteor.subscribe('Bodies', {
-      onReady: function () {
-        initPhysics()
-        initRender()
-        update()
-      }
-    })
-
-    InputStream.on('Input', function (event) {
-      if (isHost) handleInput(event.position, event.worldId)
-    })
-
-    SnapshotStream.on('Snapshot', function (snapshot) {
-      processSnapshot(snapshot)
-    })
-
-    $(document).on('mousedown touchstart', function (e) {
-      if (e.type === 'mousedown') var clickPosition = [e.pageX, window.innerHeight - e.pageY]
-      else if (e.type === 'touchstart') var clickPosition = [e.originalEvent.touches[0].pageX, window.innerHeight - e.originalEvent.touches[0].pageY]
-
-      if (isHost || update === clientSidePredictionUpdate) handleInput(clickPosition, player.body.id)
-      if (!isHost || update === clientSidePredictionUpdate) {
-        InputStream.emit('Input', {
-          position: clickPosition,
-          worldId: player.body.id,
-          index: inputIndex
-        })
-        inputBuffer.push({
-          position: clickPosition,
-          index: inputIndex
-        })
-        inputIndex++
-      }
-    })
-
-    Meteor.subscribe('ModeSwitches', {
-      onReady: function () {
-        ModeSwitches.find().observe({
-          added: function (mode) {
-            if (mode.name === 'simple') update = simpleUpdate
-            if (mode.name === 'simpleInterpolate') update = simpleInterpolatedSnapshotsUpdate
-          }
-        })
-      }
-    })
-  })
-}
-
-function simpleUpdate (time) {
-  var deltaTime = (time - lastRender) / 1000
-  lastRender = time
-  if (isHost) {
-    var bodies = p2World.bodies.map(function (body) {
-      return {
-        id: body.id,
-        position: body.position
-      }
-    })
-    SnapshotStream.emit('Snapshot', { bodies: bodies })
-    p2World.step(deltaTime || 0.017)
-    if (Date.now() - lastSave > 5000) saveState()
-  } else {
-    var snapshot = interpolationBuffer[interpolationBuffer.length - 1]
-    if (snapshot) {
-      snapshot.bodies.forEach(function (body) {
-        var p2Body = p2World.getBodyById(body.id)
-        p2Body.position = body.position
-      })
-      interpolationBuffer = []
+  Meteor.subscribe('Bodies', {
+    onReady: function () {
+      initPhysics()
+      initRender()
+      update()
     }
-  }
-  renderBodies()
-  renderer.render(stage)
-  requestAnimationFrame(update)
+  })
+
+  InputStream.on('Input', function (event) {
+    if (isHost) handleInput(event.position, event.worldId)
+  })
+
+  SnapshotStream.on('Snapshot', function (snapshot) {
+    processSnapshot(snapshot)
+  })
+
+  $(document).on('mousedown touchstart', function (e) {
+    var clickPosition
+    if (e.type === 'mousedown') clickPosition = [e.pageX, window.innerHeight - e.pageY]
+    else if (e.type === 'touchstart') clickPosition = [e.originalEvent.touches[0].pageX, window.innerHeight - e.originalEvent.touches[0].pageY]
+
+    if (isHost) handleInput(clickPosition, player.body.id)
+    if (!isHost) {
+      InputStream.emit('Input', {
+        position: clickPosition,
+        worldId: player.body.id,
+        index: inputIndex
+      })
+      inputBuffer.push({
+        position: clickPosition,
+        index: inputIndex
+      })
+      inputIndex++
+    }
+  })
 }
 
 function simpleInterpolatedSnapshotsUpdate (time) {
@@ -149,28 +98,12 @@ function simpleInterpolatedSnapshotsUpdate (time) {
     p2World.step(deltaTime || 0.017)
     if (Date.now() - lastSave > 5000) saveState()
   } else {
-    if (avgTimeDiffInterval === undefined) {
-      var avgTimeDiffInterval = Meteor.setInterval(function () {
-        if (timeDiffs.length === 0) return
-        var sum = timeDiffs.reduce(function (a, b) { return a + b })
-        var avgTimeDiff = sum / timeDiffs.length
-        timeDiffs = []
-      }, 5000)
-    }
     if (interpolationBuffer.length > 1) {
       if (framesToInterpolate < 1) framesToInterpolate = 60 / Config.interpolation.pps
       interpolatePositions(interpolationBuffer[interpolationBuffer.length - 1], framesToInterpolate)
       framesToInterpolate--
     }
   }
-  renderBodies()
-  renderer.render(stage)
-  requestAnimationFrame(update)
-}
-
-function clientSidePredictionUpdate (time) {
-  var deltaTime = (time - lastRender) / 1000
-  lastRender = time
   renderBodies()
   renderer.render(stage)
   requestAnimationFrame(update)
@@ -349,11 +282,10 @@ function initRender () {
   stage = new pixi.Stage(0x000000)
   // We add physics objects to the world, then move the "camera" by changing the world's position
   pixiWorld = new pixi.DisplayObjectContainer()
-  ui = new pixi.DisplayObjectContainer()
+  var ui = new pixi.DisplayObjectContainer()
   stage.addChild(pixiWorld)
   // The UI should be static tho
   stage.addChild(ui)
-  initialScreenRatio = window.innerWidth / window.innerHeight
   renderer = new pixi.autoDetectRenderer(window.innerWidth - 4, window.innerHeight - 4, {
     antialias: true
   })
@@ -401,33 +333,4 @@ function saveState () {
     }
   })
   lastSave = Date.now()
-}
-
-function cpuTest (cb) {
-  console.log('performing cpu test')
-  var stepCount = 0
-  var stop = false
-  var testWorld = new p2.World({
-    gravity: [0, -9.78]
-  })
-  for (var i=0; i++; i < 50) {
-    var testBody = new p2.Body({
-      position: [ i * 10, 10 ],
-      mass: i,
-      damping: 0.1
-    })
-    var testShape = new p2.Circle(4)
-    testBody.addShape(testShape)
-    testBody.velocity = [ 25 - i, i ]
-    testWorld.addBody(testBody)
-  }
-  var interval = Meteor.setInterval(function () {
-    testWorld.step(0.017)
-    stepCount++
-  }, 1)
-  Meteor.setTimeout(function () {
-    Meteor.clearInterval(interval)
-    cb(stepCount)
-  }, 1000)
-
 }
