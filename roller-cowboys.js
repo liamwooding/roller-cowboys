@@ -1,23 +1,39 @@
+/* global FlowRouter */
+Games = new Meteor.Collection('games') /* global Games */
+
 if (Meteor.isClient) {
-  // counter starts at 0
-  Session.setDefault('counter', 0);
 
-  Template.hello.helpers({
-    counter: function () {
-      return Session.get('counter');
+  Template.listGames.helpers({
+    games: function () {
+      return Games.find().fetch()
     }
-  });
+  })
 
-  Template.hello.events({
-    'click button': function () {
-      // increment the counter when button is clicked
-      Session.set('counter', Session.get('counter') + 1);
+  Template.listGames.events({
+
+  })
+
+  Template.playGame.helpers({
+    game: function () {
+      return Games.findOne()
     }
-  });
+  })
+
+  Template.registerHelper('isReady', function (sub) {
+    if (sub) {
+      return FlowRouter.subsReady(sub)
+    } else {
+      return FlowRouter.subsReady()
+    }
+  })
 }
 
 if (Meteor.isServer) {
   Meteor.startup(function () {
-    // code to run on server at startup
-  });
+    if (Games.find().count() === 0) Games.insert({ name: 'Default' })
+
+    Meteor.publish('games', function () {
+      return Games.find()
+    })
+  })
 }

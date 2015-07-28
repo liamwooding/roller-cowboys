@@ -1,0 +1,15 @@
+head
+  title Roller Cowboys
+
+body
+  h1 Roller Cowboys
+
+template(name='listGames')
+  if isReady "games"
+    each games
+      a(href='/games/#{_id}') #{name}
+  else
+    p Looking for games...
+
+template(name='playGame')
+  h1= game.name
