@@ -8,3 +8,8 @@ meteor-platform
 mquandalle:jade
 meteorhacks:flow-router
 meteorhacks:flow-layout
+meteorhacks:picker
+meteorhacks:npm
+
+
+npm-container

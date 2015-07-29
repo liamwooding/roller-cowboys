@@ -7,9 +7,15 @@ body
 template(name='listGames')
   if isReady "games"
     each games
-      a(href='/games/#{_id}') #{name}
+      ul
+        li
+          a(href='/games/#{_id}') #{name}
   else
     p Looking for games...
+  h2 Start a new game
+  form#new-game(action='/new-game' method='POST')
+    input(type='text' name='name' required)
+    button.new-game(type='submit') New game
 
 template(name='playGame')
   h1= game.name
