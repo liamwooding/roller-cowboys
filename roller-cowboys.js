@@ -1,7 +1,20 @@
 /* global FlowRouter */
 Games = new Meteor.Collection('games') /* global Games */
+Players = new Meteor.Collection('players') /* global Players */
 
 if (Meteor.isClient) {
+  if (!window.localStorage.playerId) {
+    console.log('No player found in localStorage, creating a new one')
+    Players.insert({
+      games: [],
+      name: Random.id()
+    }, function (err, playerId) {
+      if (err) return console.error(err)
+        window.localStorage.playerId = playerId
+    })
+
+
+  }
 
   Template.listGames.helpers({
     games: function () {
@@ -30,8 +43,30 @@ if (Meteor.isClient) {
   })
 
   Template.playGame.helpers({
+    players: function () {
+      return Players.find().fetch()
+    },
     game: function () {
       return Games.findOne()
+    }
+  })
+
+  Template.playGame.events({
+    ready: function () {
+
+    },
+    'click .btn-join': function () {
+      var ctx = this
+      var gameId = ctx.gameId()
+
+      Players.update(
+        { _id: playerId() },
+        { $addToSet: { games: gameId } }, // addToSet avoids duplicate values
+        function (err) {
+          if (err) return console.error(err)
+          // We're in - do stuff
+        }
+      )
     }
   })
 
@@ -44,13 +79,26 @@ if (Meteor.isClient) {
   })
 }
 
+function playerId () {
+  return window.localStorage.playerId
+}
+
+// Server
 if (Meteor.isServer) {
   Meteor.startup(function () {
-    if (Games.find().count() === 0) Games.insert({ name: 'Default' })
-
     Meteor.publish('games', function (params) {
       if (params && params.gameId) return Games.find({ _id: params.gameId })
       return Games.find()
     })
+
+    Meteor.publish('players', function (params) {
+      if (params && params.gameId) return Players.find({ games: params.gameId })
+      return Players.find()
+    })
+  })
+
+  Players.allow({
+    insert: function () { return true },
+    update: function () { return true }
   })
 }

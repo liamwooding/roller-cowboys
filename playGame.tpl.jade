@@ -1,0 +1,11 @@
+h1= game.name
+
+if isReady 'game'
+  #game(data-gameId= game._id)
+    button.btn-join Join Game
+    ul
+      each players
+        li
+          span= name
+else
+  p Loading...
