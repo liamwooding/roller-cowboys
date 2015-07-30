@@ -4,7 +4,7 @@ if isReady 'game'
   #game(data-gameId= game._id)
     button.btn-join Join Game
     ul
-      each players
+      each game.players
         li
           span= name
 else

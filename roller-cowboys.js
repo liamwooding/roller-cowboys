@@ -12,8 +12,6 @@ if (Meteor.isClient) {
       if (err) return console.error(err)
         window.localStorage.playerId = playerId
     })
-
-
   }
 
   Template.listGames.helpers({
@@ -57,11 +55,11 @@ if (Meteor.isClient) {
     },
     'click .btn-join': function () {
       var ctx = this
-      var gameId = ctx.gameId()
 
-      Players.update(
-        { _id: playerId() },
-        { $addToSet: { games: gameId } }, // addToSet avoids duplicate values
+      var player = Players.findOne({_id: playerId()})
+      Games.update(
+        { _id: ctx.gameId() },
+        { $addToSet: { players: player } }, // addToSet avoids duplicate values
         function (err) {
           if (err) return console.error(err)
           // We're in - do stuff
@@ -92,12 +90,17 @@ if (Meteor.isServer) {
     })
 
     Meteor.publish('players', function (params) {
-      if (params && params.gameId) return Players.find({ games: params.gameId })
+      if (params && params.playerId) return Players.find({ _id: params.playerId })
       return Players.find()
     })
   })
 
   Players.allow({
+    insert: function () { return true },
+    update: function () { return true }
+  })
+
+  Games.allow({
     insert: function () { return true },
     update: function () { return true }
   })
