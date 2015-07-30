@@ -40,6 +40,13 @@ if (Meteor.isClient) {
   })
 
   // playGame
+  Template.playGame.onRendered(function () {
+    Games.find().observeChanges({
+      changed: function (gameId, fields) {
+        if (fields.turns) console.log('A new turn has begun')
+      }
+    })
+  })
   Template.playGame.helpers({
     players: function () {
       return Players.find().fetch()
