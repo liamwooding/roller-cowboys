@@ -6,7 +6,6 @@ if (Meteor.isClient) {
   if (!window.localStorage.playerId) {
     console.log('No player found in localStorage, creating a new one')
     Players.insert({
-      games: [],
       name: Random.id()
     }, function (err, playerId) {
       if (err) return console.error(err)
@@ -44,14 +43,47 @@ if (Meteor.isClient) {
     players: function () {
       return Players.find().fetch()
     },
+    player: function () {
+      return Players.findOne({ _id: playerId() })
+    },
+    hasJoined: function () {
+      var player = Players.findOne({ _id: playerId() })
+      return Games.findOne({ players: player })
+    },
     game: function () {
       return Games.findOne()
+    },
+    currentTurnArray: function () {
+      var turn = Games.findOne().currentTurn
+      if (!turn) return console.log('no turn yet')
+      var array = Object.keys(turn).map(function (key) {
+        var obj = {
+          name: turn[key].name,
+          action: turn[key].action
+        }
+        return obj
+      })
+      console.log(array[0])
+      return array
     }
   })
 
   Template.playGame.events({
-    ready: function () {
-
+    'click .btn-end-turn': function () {
+      var player = Players.findOne({_id: playerId()})
+      var ctx = this
+      var turn = {}
+      turn[player._id] = {
+        name: player.name,
+        action: 'pushed the button'
+      }
+      Games.update(
+        { _id: ctx.gameId() },
+        { $set: { currentTurn: turn } },
+        function (err) {
+          if (err) return console.error(err)
+        }
+      )
     },
     'click .btn-join': function () {
       var ctx = this
@@ -62,7 +94,6 @@ if (Meteor.isClient) {
         { $addToSet: { players: player } }, // addToSet avoids duplicate values
         function (err) {
           if (err) return console.error(err)
-          // We're in - do stuff
         }
       )
     }
@@ -74,6 +105,10 @@ if (Meteor.isClient) {
     } else {
       return FlowRouter.subsReady()
     }
+  })
+
+  Template.registerHelper('isEq', function (a, b) {
+    return a === b
   })
 }
 

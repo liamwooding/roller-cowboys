@@ -1,11 +1,23 @@
 h1= game.name
 
 if isReady 'game'
-  #game(data-gameId= game._id)
-    button.btn-join Join Game
+  if game
+    #game(data-gameId= game._id)
+      if hasJoined
+        button.btn-end-turn End turn
+        ul
+          each currentTurnArray
+            li
+              span #{name} #{action}
+      else
+        button.btn-join Join Game
+    h4 Players:
     ul
       each game.players
         li
           span= name
+  else
+    h2 404!
+  
 else
   p Loading...
