@@ -13,12 +13,12 @@ if (Meteor.isClient) {
     })
   }
 
+  // listGames
   Template.listGames.helpers({
     games: function () {
       return Games.find().fetch()
     }
   })
-
   Template.listGames.events({
     'submit #new-game': function (e) {
       e.preventDefault()
@@ -39,6 +39,7 @@ if (Meteor.isClient) {
     }
   })
 
+  // playGame
   Template.playGame.helpers({
     players: function () {
       return Players.find().fetch()
@@ -67,23 +68,16 @@ if (Meteor.isClient) {
       return array
     }
   })
-
   Template.playGame.events({
     'click .btn-end-turn': function () {
       var player = Players.findOne({_id: playerId()})
       var ctx = this
-      var turn = {}
-      turn[player._id] = {
+      var turn = {
+        playerId: player._id,
         name: player.name,
         action: 'pushed the button'
       }
-      Games.update(
-        { _id: ctx.gameId() },
-        { $set: { currentTurn: turn } },
-        function (err) {
-          if (err) return console.error(err)
-        }
-      )
+      Meteor.call('declareTurn', ctx.gameId(), turn)
     },
     'click .btn-join': function () {
       var ctx = this
@@ -99,6 +93,7 @@ if (Meteor.isClient) {
     }
   })
 
+  // Global helpers
   Template.registerHelper('isReady', function (sub) {
     if (sub) {
       return FlowRouter.subsReady(sub)
@@ -106,37 +101,82 @@ if (Meteor.isClient) {
       return FlowRouter.subsReady()
     }
   })
-
   Template.registerHelper('isEq', function (a, b) {
     return a === b
   })
 }
 
+// Meteor methods - client side
+Meteor.methods({
+  checkForTurnEnded: function (gameId) {
+    if (Meteor.isServer) {
+      if (!gameId) return console.error('No ID provided with checkForTurnEnded call')
+      var game = Games.findOne({ _id: gameId })
+      if (game.currentTurn.length === game.players.length) {
+        Meteor.call('turnHasEnded', gameId)
+      }
+    }
+  },
+  turnHasEnded: function (gameId) {
+    if (Meteor.isClient) {
+      if (!gameId) return console.error('No ID provided with turnHasEnded call')
+      console.log(Games.find().count())
+    }
+  },
+  declareTurn: function (gameId, turn) {
+    // This one's for the heads
+    if (Meteor.isServer) {
+      Games.update(
+        { _id: gameId, 'currentTurn.playerId': turn.playerId },
+        { $set: { 'currentTurn.$': turn } },
+        function (err, affected) {
+          if (err) return console.error(err)
+          if (affected) return Meteor.call('checkForTurnEnded', gameId)
+          console.log('No games affected')
+          Games.update(
+            { _id: gameId },
+            { $push: { currentTurn: turn } },
+            function (err, affected) {
+              if (err) return console.error(err)
+              console.log('games affected:', affected)
+              Meteor.call('checkForTurnEnded', gameId)
+            }
+          )
+        }
+      )
+    }
+  }
+})
+
 function playerId () {
+  if (!window || !window.localStorage) return false
   return window.localStorage.playerId
 }
 
 // Server
 if (Meteor.isServer) {
   Meteor.startup(function () {
+    // Publish functions
     Meteor.publish('games', function (params) {
       if (params && params.gameId) return Games.find({ _id: params.gameId })
       return Games.find()
     })
-
     Meteor.publish('players', function (params) {
       if (params && params.playerId) return Players.find({ _id: params.playerId })
       return Players.find()
     })
   })
 
+  // DB permissions
   Players.allow({
     insert: function () { return true },
     update: function () { return true }
   })
-
   Games.allow({
     insert: function () { return true },
     update: function () { return true }
   })
+
+  // Cursor observers
+  Games.update
 }
