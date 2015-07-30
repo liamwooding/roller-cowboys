@@ -64,7 +64,6 @@ if (Meteor.isClient) {
         }
         return obj
       })
-      console.log(array[0])
       return array
     }
   })
@@ -113,14 +112,18 @@ Meteor.methods({
       if (!gameId) return console.error('No ID provided with checkForTurnEnded call')
       var game = Games.findOne({ _id: gameId })
       if (game.currentTurn.length === game.players.length) {
-        Meteor.call('turnHasEnded', gameId)
+        Games.update(
+          { _id: gameId },
+          {
+            $push: { turns: game.currentTurn },
+            $set: { currentTurn: [] }
+          },
+          function (err) {
+            if (err) return console.error(err)
+            console.log('New turn started')
+          }
+        )
       }
-    }
-  },
-  turnHasEnded: function (gameId) {
-    if (Meteor.isClient) {
-      if (!gameId) return console.error('No ID provided with turnHasEnded call')
-      console.log(Games.find().count())
     }
   },
   declareTurn: function (gameId, turn) {
@@ -132,13 +135,11 @@ Meteor.methods({
         function (err, affected) {
           if (err) return console.error(err)
           if (affected) return Meteor.call('checkForTurnEnded', gameId)
-          console.log('No games affected')
           Games.update(
             { _id: gameId },
             { $push: { currentTurn: turn } },
             function (err, affected) {
               if (err) return console.error(err)
-              console.log('games affected:', affected)
               Meteor.call('checkForTurnEnded', gameId)
             }
           )
