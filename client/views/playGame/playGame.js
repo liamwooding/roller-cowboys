@@ -5,9 +5,11 @@ Template.playGame.onRendered(function () {
     }
   })
 
-  initWorld(function (world) {
-    renderWorld(world, function (canvas) {
-      console.log(canvas)
+  Meteor.subscribe('games', function () {
+    initEngine(function (engine) {
+      buildWorld(engine, function (engine) {
+        console.log('Built world')
+      })
     })
   })
 })
@@ -65,21 +67,33 @@ Template.playGame.events({
   }
 })
 
-function initWorld (cb) {
-  // build world with matter
+function initEngine (cb) {
+  // create a Matter.js engine
+  var engine = Matter.Engine.create({
+    render: {
+      element: document.querySelector('#stage'),
+      controller: Matter.RenderPixi,
+      options: {
+        width: $('#stage').innerWidth(),
+        height: $('#stage').innerHeight()
+      }
+    }
+  })
 
-  //cb(world)
+  var ground = Matter.Bodies.rectangle($('#stage').innerWidth() / 2, $('#stage').innerHeight() - 10, $('#stage').innerWidth(), 20, { isStatic: true })
+
+  Matter.World.add(engine.world, [ground])
+
+  // run the engine
+  Matter.Engine.run(engine)
+  cb(engine)
 }
 
-function renderWorld (world, cb) {
-  var canvas = new PIXI.Container()
-  var container = new PIXI.Container()
-  stage.addChild(container)
-  //stage.addChild(world)
-  renderer = new PIXI.autoDetectRenderer($('#canvas').innerWidth(), $('#canvas').innerHeight(), {
-    antialias: true
+function buildWorld (engine) {
+  engine.world.gravity = { x: 0, y: 0 }
+  var game = Games.findOne()
+  game.players.forEach(function (player, i) {
+    var playerBody = Matter.Bodies.circle(40 * (i + 1), 300, 10)
+    Matter.World.addBody(engine.world, playerBody)
   })
-  renderer.backgroundColor = 0xF5F5F5
-  $('#canvas').append(renderer.view)
-  renderer.render(canvas)
 }

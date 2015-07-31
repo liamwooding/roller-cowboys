@@ -1,6 +1,6 @@
 /* CSS declarations go here */
-#canvas {
-  width: 90vw;
+#stage {
+  width: 80%;
+  height: calc(80% * 0.5625);
   margin: 15px auto;
-  height: 50vw;
 }
