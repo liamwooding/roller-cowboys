@@ -1,1 +1,6 @@
 /* CSS declarations go here */
+#canvas {
+  width: 90vw;
+  margin: 15px auto;
+  height: 50vw;
+}
