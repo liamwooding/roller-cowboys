@@ -1,9 +1,6 @@
 /* global FlowRouter */
-/* global Games */
-/* global Players */
-
-Games = new Meteor.Collection('games')
-Players = new Meteor.Collection('players')
+Games = new Meteor.Collection('games') /* global Games */
+Players = new Meteor.Collection('players') /* global Players */
 
 Meteor.methods({
   checkForTurnEnded: function (gameId) {
