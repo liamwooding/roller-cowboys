@@ -1,3 +1,5 @@
+var RCEngine
+
 Template.playGame.onRendered(function () {
   Games.find().observeChanges({
     changed: function (gameId, fields) {
@@ -7,7 +9,8 @@ Template.playGame.onRendered(function () {
 
   FlowRouter.subsReady('game', function () {
     initEngine(function (engine) {
-      buildWorld(engine, function (engine) {
+      RCEngine = engine
+      initWorld(RCEngine, function () {
         console.log('Built world')
       })
     })
@@ -47,7 +50,7 @@ Template.playGame.events({
       if (err) return console.error(err)
       var player = Games.findOne().players.filter(function (p) { return p._id === localStorage.playerId })[0]
       console.log('Player joined: ', player)
-      addPlayerToStage()
+      addPlayerToStage(player)
     })
   }
 })
@@ -70,16 +73,12 @@ function initEngine (cb) {
   cb(engine)
 }
 
-function buildWorld (engine) {
+function initWorld () {
   // Need to position players after they join the game
   // Also need to prevent players from joining during a game
-  engine.world.gravity = { x: 0, y: 0 }
+  RCEngine.world.gravity = { x: 0, y: 0 }
   Games.findOne().players.filter(function (player) { return player.position })
-  .forEach(function (player, i) {
-    console.log(player, i)
-    var playerBody = getBodyForPlayer(player)
-    Matter.World.addBody(engine.world, playerBody)
-  })
+  .forEach(addPlayerToStage)
 }
 
 function getBodyForPlayer (player) {
@@ -87,5 +86,6 @@ function getBodyForPlayer (player) {
 }
 
 function addPlayerToStage (player) {
-
+  var playerBody = getBodyForPlayer(player)
+  Matter.World.addBody(RCEngine.world, playerBody)
 }
