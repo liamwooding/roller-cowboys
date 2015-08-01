@@ -48,7 +48,7 @@ Meteor.methods({
       var player = Players.findOne({ _id: playerId })
 
       Games.update(
-        { _id: gameId, 'players.playerId': playerId },
+        { _id: gameId, 'players._id': playerId },
         { $set: { 'players.$': player } },
         function (err, affected) {
           if (err) return console.error(err)
