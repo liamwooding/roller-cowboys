@@ -27,18 +27,6 @@ Template.playGame.helpers({
   },
   game: function () {
     return Games.findOne()
-  },
-  currentTurnArray: function () {
-    var turn = Games.findOne().currentTurn
-    if (!turn) return console.log('no turn yet')
-    var array = Object.keys(turn).map(function (key) {
-      var obj = {
-        name: turn[key].name,
-        action: turn[key].action
-      }
-      return obj
-    })
-    return array
   }
 })
 
@@ -80,20 +68,22 @@ function initEngine (cb) {
     }
   })
 
-  var ground = Matter.Bodies.rectangle($('#stage').innerWidth() / 2, $('#stage').innerHeight() - 10, $('#stage').innerWidth(), 20, { isStatic: true })
-
-  Matter.World.add(engine.world, [ground])
-
   // run the engine
   Matter.Engine.run(engine)
   cb(engine)
 }
 
 function buildWorld (engine) {
+  // Need to position players after they join the game
+  // Also need to prevent players from joining during a game
   engine.world.gravity = { x: 0, y: 0 }
-  var game = Games.findOne()
-  game.players.forEach(function (player, i) {
-    var playerBody = Matter.Bodies.circle(40 * (i + 1), 300, 10)
+  Games.findOne().players.filter(function (player) { return player.position })
+  .forEach(function (player, i) {
+    var playerBody = getBodyForPlayer()
     Matter.World.addBody(engine.world, playerBody)
   })
+}
+
+function getBodyForPlayer (player) {
+  return Matter.Bodies.circle(player.position.x, player.position.y, 10)
 }
