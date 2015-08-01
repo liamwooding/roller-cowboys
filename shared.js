@@ -42,5 +42,27 @@ Meteor.methods({
         }
       )
     }
+  },
+  joinGame: function (gameId, playerId) {
+    if (Meteor.isServer) {
+      var player = Players.findOne({ _id: playerId })
+
+      Games.update(
+        { _id: gameId, 'players.playerId': playerId },
+        { $set: { 'players.$': player } },
+        function (err, affected) {
+          if (err) return console.error(err)
+          if (affected) return console.log('Existing player updated:', playerId)
+          Games.update(
+            { _id: gameId },
+            { $push: { players: player } },
+            function (err, affected) {
+              if (err) return console.error(err)
+              if (affected) return console.log('Player joined:', playerId)
+            }
+          )
+        }
+      )
+    }
   }
 })

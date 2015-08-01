@@ -5,7 +5,7 @@ Template.playGame.onRendered(function () {
     }
   })
 
-  Meteor.subscribe('games', function () {
+  FlowRouter.subsReady('game', function () {
     initEngine(function (engine) {
       buildWorld(engine, function (engine) {
         console.log('Built world')
@@ -23,6 +23,7 @@ Template.playGame.helpers({
   },
   hasJoined: function () {
     var player = Players.findOne({ _id: localStorage.playerId })
+    console.log(Games.find().count())
     return Games.findOne({ players: player })
   },
   game: function () {
@@ -44,14 +45,7 @@ Template.playGame.events({
   'click .btn-join': function () {
     var ctx = this
 
-    var player = Players.findOne({_id: localStorage.playerId})
-    Games.update(
-      { _id: ctx.gameId() },
-      { $addToSet: { players: player } }, // addToSet avoids duplicate values
-      function (err) {
-        if (err) return console.error(err)
-      }
-    )
+    Meteor.call('joinGame', ctx.gameId(), localStorage.playerId)
   }
 })
 
