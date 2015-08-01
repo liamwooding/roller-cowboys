@@ -29,11 +29,11 @@ Meteor.methods({
       }
     }
   },
-  declareTurn: function (gameId, turn) {
+  declareTurn: function (gameId, playerId, turn) {
     // This one's for the heads
     if (Meteor.isServer) {
       Games.update(
-        { _id: gameId, 'currentTurn.playerId': turn.playerId },
+        { _id: gameId, 'currentTurn.playerId': playerId },
         { $set: { 'currentTurn.$': turn } },
         function (err, affected) {
           if (err) return console.error(err)
@@ -64,6 +64,7 @@ Meteor.methods({
         { $set: { 'players.$': player } },
         function (err, affected) {
           if (err) return console.error(err)
+          if (affected) return
           Games.update(
             { _id: gameId },
             { $push: { players: player } },

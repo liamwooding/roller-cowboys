@@ -1,9 +1,15 @@
 var RCEngine
+var hammer
+var UI = {
+  renderer: null,
+  stage: null,
+  aimLine: null
+}
 
 Template.playGame.onRendered(function () {
   Games.find().observeChanges({
     changed: function (gameId, fields) {
-      if (fields.turns) console.log('A new turn has begun')
+      if (fields.turns) newTurn()
     }
   })
 
@@ -13,6 +19,8 @@ Template.playGame.onRendered(function () {
       initWorld(RCEngine, function () {
         console.log('Built world')
       })
+      initUI()
+      initHammer()
     })
   })
 })
@@ -25,8 +33,7 @@ Template.playGame.helpers({
     return Players.findOne({ _id: localStorage.playerId })
   },
   hasJoined: function () {
-    var player = Players.findOne({ _id: localStorage.playerId })
-    return Games.findOne({ players: player })
+    return Games.findOne({ 'players._id': localStorage.playerId })
   },
   game: function () {
     return Games.findOne()
@@ -50,10 +57,33 @@ Template.playGame.events({
       if (err) return console.error(err)
       var player = Games.findOne().players.filter(function (p) { return p._id === localStorage.playerId })[0]
       console.log('Player joined: ', player)
-      addPlayerToStage(player)
+      addPlayerToStage(player )
     })
   }
 })
+
+function newTurn () {
+  console.log('A new turn has begun')
+  var game = Games.findOne()
+  RCEngine.world.bodies.filter(function (p) { return p.playerId })
+  .forEach(function (playerBody) {
+    var player = game.players.filter(function (p) {
+      return p._id === playerBody.playerId
+    })[0]
+    playerBody.position = player.position
+  })
+
+  waitForAim(function (angle1) {
+    waitForAim(function (angle2) {
+      Meteor.call(
+        'declareTurn',
+        ctx.gameId(),
+        localStorage.playerId,
+        { 0: angle1, 1: angle2 }
+      )
+    })
+  })
+}
 
 function initEngine (cb) {
   // create a Matter.js engine
@@ -68,17 +98,18 @@ function initEngine (cb) {
     }
   })
 
+  engine.enableSleeping = true
+
   // run the engine
   Matter.Engine.run(engine)
   cb(engine)
 }
 
 function initWorld () {
-  // Need to position players after they join the game
-  // Also need to prevent players from joining during a game
   RCEngine.world.gravity = { x: 0, y: 0 }
   Games.findOne().players.filter(function (player) { return player.position })
   .forEach(addPlayerToStage)
+  console.log(RCEngine.world.bodies)
 }
 
 function getBodyForPlayer (player) {
@@ -87,5 +118,62 @@ function getBodyForPlayer (player) {
 
 function addPlayerToStage (player) {
   var playerBody = getBodyForPlayer(player)
+  playerBody.playerId = player._id
   Matter.World.addBody(RCEngine.world, playerBody)
+}
+
+function initUI () {
+  UI.renderer = new PIXI.autoDetectRenderer(
+    $('#ui').innerWidth(),
+    $('#ui').innerHeight(),
+    {
+      antialias: true,
+      transparent: true
+    }
+  )
+  $('#ui').append(UI.renderer.view)
+  UI.stage = new PIXI.Container()
+
+  UI.aimLine = new PIXI.Graphics()
+  UI.stage.addChild(UI.aimLine)
+
+  UI.renderer.render(UI.stage)
+}
+
+function drawAimLine (center, angle, distance) {
+  var radians = angle * Math.PI / 180
+
+  UI.aimLine.clear()
+  UI.aimLine.lineStyle(1, 0xFFFFFF, 1)
+  UI.aimLine.moveTo(center.x, center.y)
+  UI.aimLine.lineTo(
+    center.x + (distance * Math.cos(radians) * 2),
+    center.y + (distance * Math.sin(radians) * 2)
+  )
+  UI.renderer.render(UI.stage)
+}
+
+function clearAimLine () {
+  UI.aimLine.clear()
+}
+
+function initHammer () {
+  hammer = new Hammer($('#ui')[0])
+  hammer.get('pan').set({ direction: Hammer.DIRECTION_ALL })
+}
+
+function waitForAim (cb) {
+  hammer.on('panstart', function (e) {
+    var center = {
+      x: e.pointers[0].offsetX,
+      y: e.pointers[0].offsetY
+    }
+    hammer.on('pan', function (e) {
+      drawAimLine(center, e.angle, e.distance)
+    })
+  })
+  hammer.on('panend', function (e) {
+    hammer.off('pan')
+    cb(e.angle)
+  })
 }
