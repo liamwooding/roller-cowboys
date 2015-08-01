@@ -60,7 +60,7 @@ Template.playGame.events({
       name: player.name,
       action: 'pushed the button'
     }
-    Meteor.call('declareTurn', ctx.gameId(), turn)
+    Meteor.call('declareMove', ctx.gameId(), turn)
   },
   'click .btn-join': function () {
     var ctx = this
@@ -115,7 +115,7 @@ function startAiming () {
   waitForAim(function (angle1) {
     waitForAim(function (angle2) {
       Meteor.call(
-        'declareTurn',
+        'declareMove',
         Games.findOne()._id,
         localStorage.playerId,
         { 0: angle1, 1: angle2 }
@@ -125,7 +125,6 @@ function startAiming () {
 }
 
 function initEngine (cb) {
-  // create a Matter.js engine
   var engine = Matter.Engine.create({
     render: {
       element: document.querySelector('#stage'),
@@ -138,8 +137,6 @@ function initEngine (cb) {
   })
 
   engine.enableSleeping = true
-
-  // run the engine
   Matter.Engine.run(engine)
   cb(engine)
 }

@@ -29,7 +29,7 @@ Meteor.methods({
       }
     }
   },
-  declareTurn: function (gameId, playerId, turn) {
+  declareMove: function (gameId, playerId, turn) {
     // This one's for the heads
     if (Meteor.isServer) {
       Games.update(
