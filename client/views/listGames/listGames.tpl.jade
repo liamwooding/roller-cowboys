@@ -8,5 +8,7 @@ if isReady 'games'
     each games
       li
         a(href='/games/#{_id}') #{name}
+        span  - 
+        a.btn-delete-game(href='#' data-game-id='#{_id}') Delete
 else
   p Looking for games...

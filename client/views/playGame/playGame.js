@@ -23,7 +23,6 @@ Template.playGame.helpers({
   },
   hasJoined: function () {
     var player = Players.findOne({ _id: localStorage.playerId })
-    console.log(Games.find().count())
     return Games.findOne({ players: player })
   },
   game: function () {
@@ -44,8 +43,12 @@ Template.playGame.events({
   },
   'click .btn-join': function () {
     var ctx = this
-
-    Meteor.call('joinGame', ctx.gameId(), localStorage.playerId)
+    Meteor.call('joinGame', ctx.gameId(), localStorage.playerId, function (err) {
+      if (err) return console.error(err)
+      var player = Games.findOne().players.filter(function (p) { return p._id === localStorage.playerId })[0]
+      console.log('Player joined: ', player)
+      addPlayerToStage()
+    })
   }
 })
 
@@ -73,11 +76,16 @@ function buildWorld (engine) {
   engine.world.gravity = { x: 0, y: 0 }
   Games.findOne().players.filter(function (player) { return player.position })
   .forEach(function (player, i) {
-    var playerBody = getBodyForPlayer()
+    console.log(player, i)
+    var playerBody = getBodyForPlayer(player)
     Matter.World.addBody(engine.world, playerBody)
   })
 }
 
 function getBodyForPlayer (player) {
   return Matter.Bodies.circle(player.position.x, player.position.y, 10)
+}
+
+function addPlayerToStage (player) {
+
 }

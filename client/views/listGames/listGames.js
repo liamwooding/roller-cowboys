@@ -20,5 +20,10 @@ Template.listGames.events({
     .fail(function (err) {
       console.error(err)
     })
+  },
+  'click .btn-delete-game': function (e) {
+    e.preventDefault()
+    var btn = e.target
+    Games.remove({ _id: $(btn).data('gameId') })
   }
 })

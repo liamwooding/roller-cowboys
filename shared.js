@@ -2,6 +2,13 @@
 Games = new Meteor.Collection('games') /* global Games */
 Players = new Meteor.Collection('players') /* global Players */
 
+Config = {
+  world: {
+    boundsX: 1280,
+    boundsY: 720
+  }
+}
+
 Meteor.methods({
   checkForTurnEnded: function (gameId) {
     if (Meteor.isServer) {
@@ -47,18 +54,21 @@ Meteor.methods({
     if (Meteor.isServer) {
       var player = Players.findOne({ _id: playerId })
 
+      player.position = {
+        x: getRandomInt(0, Config.world.boundsX),
+        y: getRandomInt(0, Config.world.boundsY)
+      }
+
       Games.update(
         { _id: gameId, 'players._id': playerId },
         { $set: { 'players.$': player } },
         function (err, affected) {
           if (err) return console.error(err)
-          if (affected) return console.log('Existing player updated:', playerId)
           Games.update(
             { _id: gameId },
             { $push: { players: player } },
             function (err, affected) {
               if (err) return console.error(err)
-              if (affected) return console.log('Player joined:', playerId)
             }
           )
         }
@@ -66,3 +76,7 @@ Meteor.methods({
     }
   }
 })
+
+function getRandomInt(min, max) {
+  return Math.floor(Math.random() * (max - min + 1)) + min
+}
