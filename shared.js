@@ -23,7 +23,7 @@ Meteor.methods({
           },
           function (err) {
             if (err) return console.error(err)
-            console.log('New turn started')
+            console.log('New turn started in game', gameId)
           }
         )
       }

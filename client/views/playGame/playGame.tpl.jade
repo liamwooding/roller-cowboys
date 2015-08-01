@@ -7,9 +7,8 @@ if isReady 'game'
   if game
     #game(data-gameId= game._id)
       if hasJoined
-        button.btn-end-turn End turn
         ul
-          each currentTurnArray
+          each currentTurn
             li
               span #{name} #{action}
       else

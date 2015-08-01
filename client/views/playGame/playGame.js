@@ -16,11 +16,22 @@ Template.playGame.onRendered(function () {
   FlowRouter.subsReady('game', function () {
     initEngine(function (engine) {
       RCEngine = engine
-      initWorld(RCEngine, function () {
-        console.log('Built world')
-      })
+      initWorld(RCEngine)
       initUI()
       initHammer()
+      getGameState(function (state) {
+        switch (state) {
+          case 0:
+            // User has not joined yet & is spectating
+            return
+          case 1:
+            // Player is returning to a game they had already joined and is expected to declare a move
+            return resumeTurn()
+          case 2:
+            // Player is returning to a game they had already joined and is waiting for the previous turn to play out
+            return waitForNewTurn()
+        }
+      })
     })
   })
 })
@@ -72,12 +83,40 @@ function newTurn () {
     })[0]
     playerBody.position = player.position
   })
+  startAiming()
+}
 
+function resumeTurn () {
+  console.log('Resuming play')
+  var game = Games.findOne()
+  RCEngine.world.bodies.filter(function (p) { return p.playerId })
+  .forEach(function (playerBody) {
+    var player = game.players.filter(function (p) {
+      return p._id === playerBody.playerId
+    })[0]
+    playerBody.position = player.position
+  })
+  startAiming()
+}
+
+function waitForNewTurn () {
+  console.log('Waiting for previous turn to finish')
+}
+
+function getGameState (cb) {
+  var game = Games.findOne()
+  if (!game.players.some(function (p) { return p._id === localStorage.playerId }))
+    return cb(0)
+  return cb(1)
+  // TODO: Need to handle the case that the previous turn is still playing out
+}
+
+function startAiming () {
   waitForAim(function (angle1) {
     waitForAim(function (angle2) {
       Meteor.call(
         'declareTurn',
-        ctx.gameId(),
+        Games.findOne()._id,
         localStorage.playerId,
         { 0: angle1, 1: angle2 }
       )
@@ -147,8 +186,8 @@ function drawAimLine (center, angle, distance) {
   UI.aimLine.lineStyle(1, 0xFFFFFF, 1)
   UI.aimLine.moveTo(center.x, center.y)
   UI.aimLine.lineTo(
-    center.x + (distance * Math.cos(radians) * 2),
-    center.y + (distance * Math.sin(radians) * 2)
+    center.x + (50 * Math.cos(radians) * 2),
+    center.y + (50 * Math.sin(radians) * 2)
   )
   UI.renderer.render(UI.stage)
 }
