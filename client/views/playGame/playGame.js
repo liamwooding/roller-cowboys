@@ -139,13 +139,20 @@ function initEngine (cb) {
   engine.enableSleeping = true
   Matter.Engine.run(engine)
 
-  // $(window).on('resize', function () {
-  //   console.log('resizing')
-  //   engine.render.options.width = $('body').innerWidth()
-  //   engine.render.options.height = $('body').innerHeight()
-  // })
+  $(window).on('resize', function () {
+    var sceneWidth = $('#stage').innerWidth()
+    var sceneHeight = sceneWidth * 0.5625
+    var renderOptions = engine.render.options
+    var canvas = engine.render.canvas
+    var boundsMax = engine.render.bounds.max
 
-  console.log(engine)
+    boundsMax.x = canvas.width = renderOptions.width = sceneWidth
+    boundsMax.y = canvas.height = renderOptions.height = sceneHeight
+
+    console.log('resizing', engine)
+  })
+
+  console.log(engine.render)
 
   cb(engine)
 }
@@ -154,7 +161,6 @@ function initWorld () {
   RCEngine.world.gravity = { x: 0, y: 0 }
   Games.findOne().players.filter(function (player) { return player.position })
   .forEach(addPlayerToStage)
-  console.log(RCEngine.world.bodies)
 }
 
 function getBodyForPlayer (player) {
@@ -185,9 +191,9 @@ function initUI () {
 
   UI.renderer.render(UI.stage)
 
-  // $(window).on('resize', function () {
-  //   UI.renderer.resize($('#ui').innerWidth(), $('#ui').innerHeight())
-  // })
+  $(window).on('resize', function () {
+    UI.renderer.resize($('#ui').innerWidth(), $('#ui').innerWidth() * 0.5625)
+  })
 }
 
 function drawAimLine (center, angle, distance) {
