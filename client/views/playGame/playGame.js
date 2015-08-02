@@ -131,13 +131,22 @@ function initEngine (cb) {
       controller: Matter.RenderPixi,
       options: {
         width: $('#stage').innerWidth(),
-        height: $('#stage').innerHeight()
+        height: $('#stage').innerWidth() * 0.5625
       }
     }
   })
 
   engine.enableSleeping = true
   Matter.Engine.run(engine)
+
+  // $(window).on('resize', function () {
+  //   console.log('resizing')
+  //   engine.render.options.width = $('body').innerWidth()
+  //   engine.render.options.height = $('body').innerHeight()
+  // })
+
+  console.log(engine)
+
   cb(engine)
 }
 
@@ -164,7 +173,8 @@ function initUI () {
     $('#ui').innerHeight(),
     {
       antialias: true,
-      transparent: true
+      transparent: true,
+      autoResize: true
     }
   )
   $('#ui').append(UI.renderer.view)
@@ -174,6 +184,10 @@ function initUI () {
   UI.stage.addChild(UI.aimLine)
 
   UI.renderer.render(UI.stage)
+
+  // $(window).on('resize', function () {
+  //   UI.renderer.resize($('#ui').innerWidth(), $('#ui').innerHeight())
+  // })
 }
 
 function drawAimLine (center, angle, distance) {

@@ -1,24 +1,44 @@
-h1= game.name
+header#header
+  nav.navbar.navbar-default
+    .container-fluid
+      .navbar-header
+        button.navbar-toggle.collapsed(type='button', data-toggle='collapse', data-target='#kittorrent-mobile-nav', aria-expanded='false')
+          span.sr-only Toggle navigation
+          span.icon-bar
+          span.icon-bar
+          span.icon-bar
+        a.navbar-brand(href='/') Roller Cowboys
+      #kittorrent-mobile-nav.collapse.navbar-collapse
+        ul.nav.navbar-nav
+          li.active
+            a(href='/')
+              | Home
+              span.sr-only (current)
+        ul.nav.navbar-nav.navbar-right
+          li
+            a(href='/login') Log in
+.container
+  h1= game.name
 
-#stage
-  #ui
+  #stage
+    #ui
 
-if isReady 'game'
-  if game
-    #game(data-gameId= game._id)
-      if hasJoined
-        ul
-          each currentTurn
-            li
-              span #{name} #{action}
-      else
-        button.btn-join Join Game
-    h4 Players:
-    ul
-      each game.players
-        li
-          span= name
+  if isReady 'game'
+    if game
+      #game(data-gameId= game._id)
+        if hasJoined
+          ul
+            each currentTurn
+              li
+                span #{name} #{action}
+        else
+          button.btn-join Join Game
+      h4 Players:
+      ul
+        each game.players
+          li
+            span= name
+    else
+      h2 404!  
   else
-    h2 404!  
-else
-  p Loading...
+    p Loading...

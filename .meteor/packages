@@ -13,3 +13,5 @@ meteorhacks:npm
 
 
 npm-container
+flemay:less-autoprefixer
+bootswatch:paper
