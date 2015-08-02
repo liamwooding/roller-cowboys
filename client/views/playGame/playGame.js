@@ -19,6 +19,10 @@ Template.playGame.onRendered(function () {
       initWorld(RCEngine)
       initUI()
       initHammer()
+
+      $(window).on('resize', resizeWorldAndUI)
+      resizeWorldAndUI()
+
       getGameState(function (state) {
         switch (state) {
           case 0:
@@ -139,21 +143,6 @@ function initEngine (cb) {
   engine.enableSleeping = true
   Matter.Engine.run(engine)
 
-  $(window).on('resize', function () {
-    var sceneWidth = $('#stage').innerWidth()
-    var sceneHeight = sceneWidth * 0.5625
-    var renderOptions = engine.render.options
-    var canvas = engine.render.canvas
-    var boundsMax = engine.render.bounds.max
-
-    boundsMax.x = canvas.width = renderOptions.width = sceneWidth
-    boundsMax.y = canvas.height = renderOptions.height = sceneHeight
-
-    console.log('resizing', engine)
-  })
-
-  console.log(engine.render)
-
   cb(engine)
 }
 
@@ -173,6 +162,23 @@ function addPlayerToStage (player) {
   Matter.World.addBody(RCEngine.world, playerBody)
 }
 
+function resizeWorldAndUI () {
+  var sceneWidth = $('#stage').innerWidth()
+  var sceneHeight = sceneWidth * 0.5625
+  var scale = sceneWidth / Config.world.boundsX
+
+  var renderOptions = RCEngine.render.options
+  var canvas = RCEngine.render.canvas
+  var boundsMax = RCEngine.render.bounds.max
+
+  boundsMax.x = canvas.width = renderOptions.width = sceneWidth
+  boundsMax.y = canvas.height = renderOptions.height = sceneHeight
+
+  RCEngine.render.container.scale.set(scale, scale)
+
+  UI.renderer.resize(sceneWidth, sceneHeight)
+}
+
 function initUI () {
   UI.renderer = new PIXI.autoDetectRenderer(
     $('#ui').innerWidth(),
@@ -190,10 +196,6 @@ function initUI () {
   UI.stage.addChild(UI.aimLine)
 
   UI.renderer.render(UI.stage)
-
-  $(window).on('resize', function () {
-    UI.renderer.resize($('#ui').innerWidth(), $('#ui').innerWidth() * 0.5625)
-  })
 }
 
 function drawAimLine (center, angle, distance) {
