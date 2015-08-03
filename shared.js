@@ -5,7 +5,7 @@ Players = new Meteor.Collection('players') /* global Players */
 Config = {
   world: {
     boundsX: 1280,
-    boundsY: 720
+    boundsY: 640
   }
 }
 

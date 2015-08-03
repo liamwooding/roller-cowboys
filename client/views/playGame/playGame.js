@@ -22,6 +22,7 @@ Template.playGame.onRendered(function () {
 
       $(window).on('resize', resizeWorldAndUI)
       resizeWorldAndUI()
+      $('#world').addClass('ready')
 
       getGameState(function (state) {
         switch (state) {
@@ -129,19 +130,28 @@ function startAiming () {
 }
 
 function initEngine (cb) {
+  var sceneWidth = $('#stage').innerWidth()
+  var sceneHeight = sceneWidth * 0.5
   var engine = Matter.Engine.create({
     render: {
-      element: document.querySelector('#stage'),
+      element: document.querySelector('#world'),
       controller: Matter.RenderPixi,
       options: {
-        width: $('#stage').innerWidth(),
-        height: $('#stage').innerWidth() * 0.5625
+        width: Config.world.boundsX,
+        height: Config.world.boundsY
       }
     }
   })
 
   engine.enableSleeping = true
   Matter.Engine.run(engine)
+
+  // var scale = sceneWidth / Config.world.boundsX
+  // engine.render.container.scale.set(scale, scale)
+
+  // engine.render.container.pivot.set(sceneWidth / 2, sceneHeight / 2)
+
+  console.log(engine.render)
 
   cb(engine)
 }
@@ -150,6 +160,12 @@ function initWorld () {
   RCEngine.world.gravity = { x: 0, y: 0 }
   Games.findOne().players.filter(function (player) { return player.position })
   .forEach(addPlayerToStage)
+
+  //DEBUG
+  addTestBodyToStage(10, 10)
+  addTestBodyToStage(100, 100)
+  addTestBodyToStage(200, 200)
+  addTestBodyToStage(Config.world.boundsX - 10, Config.world.boundsY - 10)
 }
 
 function getBodyForPlayer (player) {
@@ -162,21 +178,36 @@ function addPlayerToStage (player) {
   Matter.World.addBody(RCEngine.world, playerBody)
 }
 
+function addTestBodyToStage (x, y) {
+  var testBody = Matter.Bodies.circle(x, y, 10)
+  Matter.World.addBody(RCEngine.world, testBody)
+}
+
 function resizeWorldAndUI () {
-  var sceneWidth = $('#stage').innerWidth()
-  var sceneHeight = sceneWidth * 0.5625
+  var sceneWidth = $('#world').innerWidth()
+  var sceneHeight = sceneWidth * 0.5
   var scale = sceneWidth / Config.world.boundsX
-
-  var renderOptions = RCEngine.render.options
-  var canvas = RCEngine.render.canvas
-  var boundsMax = RCEngine.render.bounds.max
-
-  boundsMax.x = canvas.width = renderOptions.width = sceneWidth
-  boundsMax.y = canvas.height = renderOptions.height = sceneHeight
-
-  RCEngine.render.container.scale.set(scale, scale)
+  var translate = 100 - (scale * 100)
 
   UI.renderer.resize(sceneWidth, sceneHeight)
+  console.log('scale('+ scale +') translate(-'+ translate +'%, 0)')
+
+  $('#world').css({ transform: 'scale('+ scale +')' })
+
+
+  // var scale = sceneWidth / Config.world.boundsX
+
+  // var renderOptions = RCEngine.render.options
+  // var canvas = RCEngine.render.canvas
+  // var boundsMax = RCEngine.render.bounds.max
+
+  // RCEngine.render.container.pivot.set(0, -80)
+
+  // boundsMax.x = canvas.width = renderOptions.width = sceneWidth
+  // boundsMax.y = canvas.height = renderOptions.height = sceneHeight
+
+  // RCEngine.render.container.scale.set(scale, scale)
+
 }
 
 function initUI () {
