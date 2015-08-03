@@ -29,20 +29,35 @@ Meteor.methods({
       }
     }
   },
-  declareMove: function (gameId, playerId, turn) {
-    // This one's for the heads
+  declareMove: function (gameId, playerId, move) {
     if (Meteor.isServer) {
       Games.update(
         { _id: gameId, 'currentTurn.playerId': playerId },
-        { $set: { 'currentTurn.$': turn } },
+        {
+          $set: {
+            'currentTurn.$': {
+              playerId: playerId,
+              move: move
+            }
+          }
+        },
         function (err, affected) {
           if (err) return console.error(err)
+          console.log('set turn', affected)
           if (affected) return Meteor.call('checkForTurnEnded', gameId)
           Games.update(
             { _id: gameId },
-            { $push: { currentTurn: turn } },
+            {
+              $push: {
+                currentTurn: {
+                  playerId: playerId,
+                  move: move
+                }
+              }
+            },
             function (err, affected) {
               if (err) return console.error(err)
+              console.log('pushed turn', affected)
               Meteor.call('checkForTurnEnded', gameId)
             }
           )

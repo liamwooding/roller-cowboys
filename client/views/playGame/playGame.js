@@ -9,6 +9,7 @@ var UI = {
 Template.playGame.onRendered(function () {
   Games.find().observeChanges({
     changed: function (gameId, fields) {
+      console.log(fields)
       if (fields.turns) newTurn()
     }
   })
@@ -73,7 +74,8 @@ Template.playGame.events({
       if (err) return console.error(err)
       var player = Games.findOne().players.filter(function (p) { return p._id === localStorage.playerId })[0]
       console.log('Player joined: ', player)
-      addPlayerToStage(player )
+      addPlayerToStage(player)
+      if (Games.findOne().players.length === 1) newTurn()
     })
   }
 })
@@ -146,13 +148,6 @@ function initEngine (cb) {
   engine.enableSleeping = true
   Matter.Engine.run(engine)
 
-  // var scale = sceneWidth / Config.world.boundsX
-  // engine.render.container.scale.set(scale, scale)
-
-  // engine.render.container.pivot.set(sceneWidth / 2, sceneHeight / 2)
-
-  console.log(engine.render)
-
   cb(engine)
 }
 
@@ -160,12 +155,6 @@ function initWorld () {
   RCEngine.world.gravity = { x: 0, y: 0 }
   Games.findOne().players.filter(function (player) { return player.position })
   .forEach(addPlayerToStage)
-
-  //DEBUG
-  addTestBodyToStage(10, 10)
-  addTestBodyToStage(100, 100)
-  addTestBodyToStage(200, 200)
-  addTestBodyToStage(Config.world.boundsX - 10, Config.world.boundsY - 10)
 }
 
 function getBodyForPlayer (player) {
@@ -178,36 +167,23 @@ function addPlayerToStage (player) {
   Matter.World.addBody(RCEngine.world, playerBody)
 }
 
+function simulateMoves (turn) {
+
+}
+
 function addTestBodyToStage (x, y) {
   var testBody = Matter.Bodies.circle(x, y, 10)
   Matter.World.addBody(RCEngine.world, testBody)
 }
 
 function resizeWorldAndUI () {
-  var sceneWidth = $('#world').innerWidth()
+  var sceneWidth = $('#stage').innerWidth()
   var sceneHeight = sceneWidth * 0.5
   var scale = sceneWidth / Config.world.boundsX
-  var translate = 100 - (scale * 100)
 
   UI.renderer.resize(sceneWidth, sceneHeight)
-  console.log('scale('+ scale +') translate(-'+ translate +'%, 0)')
 
   $('#world').css({ transform: 'scale('+ scale +')' })
-
-
-  // var scale = sceneWidth / Config.world.boundsX
-
-  // var renderOptions = RCEngine.render.options
-  // var canvas = RCEngine.render.canvas
-  // var boundsMax = RCEngine.render.bounds.max
-
-  // RCEngine.render.container.pivot.set(0, -80)
-
-  // boundsMax.x = canvas.width = renderOptions.width = sceneWidth
-  // boundsMax.y = canvas.height = renderOptions.height = sceneHeight
-
-  // RCEngine.render.container.scale.set(scale, scale)
-
 }
 
 function initUI () {
@@ -252,6 +228,7 @@ function initHammer () {
 }
 
 function waitForAim (cb) {
+  hammer.off('panstart panend')
   hammer.on('panstart', function (e) {
     var center = {
       x: e.pointers[0].offsetX,
