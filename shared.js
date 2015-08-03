@@ -29,7 +29,7 @@ Meteor.methods({
       }
     }
   },
-  declareMove: function (gameId, playerId, move) {
+  declareMove: function (gameId, playerId, action) {
     if (Meteor.isServer) {
       Games.update(
         { _id: gameId, 'currentTurn.playerId': playerId },
@@ -37,7 +37,7 @@ Meteor.methods({
           $set: {
             'currentTurn.$': {
               playerId: playerId,
-              move: move
+              action: action
             }
           }
         },
@@ -51,7 +51,7 @@ Meteor.methods({
               $push: {
                 currentTurn: {
                   playerId: playerId,
-                  move: move
+                  action: action
                 }
               }
             },

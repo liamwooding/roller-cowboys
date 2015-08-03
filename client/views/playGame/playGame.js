@@ -9,7 +9,6 @@ var UI = {
 Template.playGame.onRendered(function () {
   Games.find().observeChanges({
     changed: function (gameId, fields) {
-      console.log(fields)
       if (fields.turns) newTurn()
     }
   })
@@ -66,7 +65,7 @@ Template.playGame.events({
       name: player.name,
       action: 'pushed the button'
     }
-    Meteor.call('declareMove', ctx.gameId(), turn)
+    Meteor.call('declareMove', ctx.gameId(), action)
   },
   'click .btn-join': function () {
     var ctx = this
@@ -80,9 +79,31 @@ Template.playGame.events({
   }
 })
 
+function simulateMoves (turn) {
+  turn.forEach(function (move) {
+    var body = RCEngine.world.bodies.filter(function (p) {
+      return p.playerId && p.playerId === move.playerId
+    })[0]
+
+    var shotVectors = Object.keys(move.action).map(function (key) {
+      return new Victor(1,0).rotateDeg(move.action[key])
+    })
+
+    var finalVector = shotVectors.reduce(function (previous, vector) {
+      return vector.add(previous)
+    })
+    console.log(finalVector)
+  })
+}
+
 function newTurn () {
   console.log('A new turn has begun')
   var game = Games.findOne()
+
+///////////////
+  simulateMoves(game.turns[game.turns.length - 1])
+////////////////
+
   RCEngine.world.bodies.filter(function (p) { return p.playerId })
   .forEach(function (playerBody) {
     var player = game.players.filter(function (p) {
@@ -165,10 +186,6 @@ function addPlayerToStage (player) {
   var playerBody = getBodyForPlayer(player)
   playerBody.playerId = player._id
   Matter.World.addBody(RCEngine.world, playerBody)
-}
-
-function simulateMoves (turn) {
-
 }
 
 function addTestBodyToStage (x, y) {
