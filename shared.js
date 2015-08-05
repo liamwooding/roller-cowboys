@@ -19,7 +19,12 @@ Meteor.methods({
           { _id: gameId },
           {
             $push: { turns: game.currentTurn },
-            $set: { currentTurn: [] }
+            $set: {
+              currentTurn: {
+                positions: [],
+                moves: []
+              }
+            }
           },
           function (err) {
             if (err) return console.error(err)
@@ -32,10 +37,10 @@ Meteor.methods({
   declareMove: function (gameId, playerId, action) {
     if (Meteor.isServer) {
       Games.update(
-        { _id: gameId, 'currentTurn.playerId': playerId },
+        { _id: gameId, 'currentTurn.moves.playerId': playerId },
         {
           $set: {
-            'currentTurn.$': {
+            'currentTurn.moves.$': {
               playerId: playerId,
               action: action
             }
@@ -49,7 +54,7 @@ Meteor.methods({
             { _id: gameId },
             {
               $push: {
-                currentTurn: {
+                'currentTurn.moves': {
                   playerId: playerId,
                   action: action
                 }
@@ -69,20 +74,40 @@ Meteor.methods({
     if (Meteor.isServer) {
       var player = Players.findOne({ _id: playerId })
 
-      player.position = {
+      var position = {
         x: getRandomInt(0, Config.world.boundsX),
         y: getRandomInt(0, Config.world.boundsY)
       }
 
+      console.log('adding player', playerId, 'to game', gameId)
+
       Games.update(
         { _id: gameId, 'players._id': playerId },
-        { $set: { 'players.$': player } },
+        {
+          $set: {
+            'players.$': player
+          },
+          $push: {
+            'currentTurn.positions': {
+              playerId: playerId,
+              position: position
+            }
+          }
+        },
         function (err, affected) {
           if (err) return console.error(err)
           if (affected) return
           Games.update(
             { _id: gameId },
-            { $push: { players: player } },
+            {
+              $push: {
+                players: player,
+                'currentTurn.positions': {
+                  playerId: playerId,
+                  position: position
+                }
+              }
+            },
             function (err, affected) {
               if (err) return console.error(err)
             }

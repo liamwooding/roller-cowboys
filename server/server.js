@@ -6,6 +6,7 @@ Meteor.startup(function () {
   })
   Meteor.publish('players', function (params) {
     if (params && params.playerId) return Players.find({ _id: params.playerId })
+    //if (params && params.gameId) return Players.find({ games: params.gameId })
     return Players.find()
   })
 

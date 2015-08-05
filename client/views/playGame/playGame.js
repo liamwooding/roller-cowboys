@@ -9,7 +9,12 @@ var UI = {
 Template.playGame.onRendered(function () {
   Games.find().observeChanges({
     changed: function (gameId, fields) {
-      if (fields.turns) newTurn()
+      if (fields.turns) endTurn()
+      if (fields.players) {
+        arePlayersReady(function (ready) {
+          if (ready) newTurn()
+        })
+      }
     }
   })
 
@@ -79,8 +84,8 @@ Template.playGame.events({
   }
 })
 
-function simulateMoves (turn) {
-  turn.forEach(function (move) {
+function simulateMoves (turn, cb) {
+  turn.moves.forEach(function (move) {
     var body = RCEngine.world.bodies.filter(function (p) {
       return p.playerId && p.playerId === move.playerId
     })[0]
@@ -92,25 +97,25 @@ function simulateMoves (turn) {
     var finalVector = shotVectors.reduce(function (previous, vector) {
       return vector.add(previous)
     })
-    console.log(finalVector)
+    Matter.Body.applyForce(body, body.position, finalVector)
   })
+
+  RCEngine.enabled = true
 }
 
 function newTurn () {
   console.log('A new turn has begun')
   var game = Games.findOne()
 
-///////////////
-  simulateMoves(game.turns[game.turns.length - 1])
-////////////////
-
   RCEngine.world.bodies.filter(function (p) { return p.playerId })
   .forEach(function (playerBody) {
-    var player = game.players.filter(function (p) {
-      return p._id === playerBody.playerId
-    })[0]
-    playerBody.position = player.position
+    var player = game.players.filter(function (p) { return p._id == playerBody.playerId })[0]
+    var playerPosition = getPositionForPlayer(player)
+    playerBody.position = playerPosition
   })
+
+  RCEngine.enabled = false
+
   startAiming()
 }
 
@@ -119,16 +124,33 @@ function resumeTurn () {
   var game = Games.findOne()
   RCEngine.world.bodies.filter(function (p) { return p.playerId })
   .forEach(function (playerBody) {
-    var player = game.players.filter(function (p) {
-      return p._id === playerBody.playerId
-    })[0]
-    playerBody.position = player.position
+    var player = game.players.filter(function (p) { return p._id == playerBody.playerId })[0]
+    var playerPosition = getPositionForPlayer(player)
+    playerBody.position = playerPosition
+    console.log(playerPosition)
   })
+
+  RCEngine.enabled = false
+
   startAiming()
+}
+
+function endTurn () {
+
+///////////////
+  simulateMoves(game.turns[game.turns.length - 1], function () {
+
+  })
+////////////////
 }
 
 function waitForNewTurn () {
   console.log('Waiting for previous turn to finish')
+}
+
+function arePlayersReady (cb) {
+  console.log('Are players ready?')
+  cb(false) // Work out if players are ready
 }
 
 function getGameState (cb) {
@@ -174,17 +196,27 @@ function initEngine (cb) {
 
 function initWorld () {
   RCEngine.world.gravity = { x: 0, y: 0 }
-  Games.findOne().players.filter(function (player) { return player.position })
-  .forEach(addPlayerToStage)
+  Games.findOne().players.forEach(addPlayerToStage)
 }
 
 function getBodyForPlayer (player) {
-  return Matter.Bodies.circle(player.position.x, player.position.y, 10)
+  var playerPosition = getPositionForPlayer(player)
+  return Matter.Bodies.circle(playerPosition.x, playerPosition.y, 10)
+}
+
+function getPositionForPlayer (player) {
+  var game = Games.findOne()
+  var playerPosition = game.currentTurn.positions.filter(function (position) {
+    return position.playerId === player._id
+  })[0]
+  return playerPosition.position
 }
 
 function addPlayerToStage (player) {
+  console.log('adding player to stage', player)
   var playerBody = getBodyForPlayer(player)
   playerBody.playerId = player._id
+  console.log('Adding player', player.name, 'at', playerBody.position)
   Matter.World.addBody(RCEngine.world, playerBody)
 }
 
