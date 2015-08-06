@@ -114,7 +114,11 @@ function newTurn () {
     playerBody.position = playerPosition
   })
 
-  RCEngine.enabled = false
+  setTimeout(function () {
+    // For whatever reason, we need to wait a tick before disabling it. Investigation needed.
+    console.log('disabling engine')
+    RCEngine.enabled = false
+  })
 
   startAiming()
 }
@@ -127,10 +131,13 @@ function resumeTurn () {
     var player = game.players.filter(function (p) { return p._id == playerBody.playerId })[0]
     var playerPosition = getPositionForPlayer(player)
     playerBody.position = playerPosition
-    console.log(playerPosition)
   })
 
-  RCEngine.enabled = false
+  setTimeout(function () {
+    // For whatever reason, we need to wait a tick before disabling it. Investigation needed.
+    console.log('disabling engine')
+    RCEngine.enabled = false
+  })
 
   startAiming()
 }
@@ -213,7 +220,6 @@ function getPositionForPlayer (player) {
 }
 
 function addPlayerToStage (player) {
-  console.log('adding player to stage', player)
   var playerBody = getBodyForPlayer(player)
   playerBody.playerId = player._id
   console.log('Adding player', player.name, 'at', playerBody.position)
