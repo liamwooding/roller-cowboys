@@ -94,21 +94,25 @@ function simulateMoves (turn, cb) {
     var finalVector = shotVectors.reduce(function (previous, vector) {
       return vector.add(previous)
     })
-    .divide({ x: 500, y: 500 })
+    .divide({ x: 200, y: 200 })
     console.log(body, finalVector)
     body.force = { x: 0, y: 0 }
     Matter.Body.applyForce(body, body.position, finalVector)
   })
 
   RCEngine.enabled = true
-  Matter.Events.on(RCEngine, 'afterTick', function () {
-    RCEngine.world.bodies.forEach(function (body) {
-      if (body.playerId) console.log('player position:', body.position)
-    })
-  })
+
   setTimeout(function () {
-    console.log('disabling engine')
-    RCEngine.enabled = false
+    Matter.Events.on(RCEngine, 'afterTick', function () {
+      var haveAllPlayersStopped = RCEngine.world.bodies.every(function (body) {
+        if (!body.playerId) return true
+        return body.isSleeping
+      })
+      if (haveAllPlayersStopped) {
+        console.log('All players have stopped')
+        RCEngine.enabled = false
+      }
+    })
   }, 1000)
 }
 
@@ -230,6 +234,7 @@ function addPlayerToStage (player) {
   var playerBody = getBodyForPlayer(player)
   if (!playerBody) return
   playerBody.playerId = player._id
+  playerBody.frictionAir = 0.1
   console.log('Adding player', player.name, 'at', playerBody.position)
   Matter.World.addBody(RCEngine.world, playerBody)
 }
