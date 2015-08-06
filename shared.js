@@ -14,7 +14,7 @@ Meteor.methods({
     if (Meteor.isServer) {
       if (!gameId) return console.error('No ID provided with checkForTurnEnded call')
       var game = Games.findOne({ _id: gameId })
-      if (game.currentTurn.length === game.players.length) {
+      if (game.currentTurn.moves.length === game.players.length) {
         Games.update(
           { _id: gameId },
           {

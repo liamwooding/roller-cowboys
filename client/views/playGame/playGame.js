@@ -9,12 +9,8 @@ var UI = {
 Template.playGame.onRendered(function () {
   Games.find().observeChanges({
     changed: function (gameId, fields) {
+      console.log(fields)
       if (fields.turns) endTurn()
-      if (fields.players) {
-        arePlayersReady(function (ready) {
-          if (ready) newTurn()
-        })
-      }
     }
   })
 
@@ -89,6 +85,7 @@ function simulateMoves (turn, cb) {
     var body = RCEngine.world.bodies.filter(function (p) {
       return p.playerId && p.playerId === move.playerId
     })[0]
+    if (!body) return
 
     var shotVectors = Object.keys(move.action).map(function (key) {
       return new Victor(1,0).rotateDeg(move.action[key])
@@ -97,10 +94,22 @@ function simulateMoves (turn, cb) {
     var finalVector = shotVectors.reduce(function (previous, vector) {
       return vector.add(previous)
     })
+    .divide({ x: 500, y: 500 })
+    console.log(body, finalVector)
+    body.force = { x: 0, y: 0 }
     Matter.Body.applyForce(body, body.position, finalVector)
   })
 
   RCEngine.enabled = true
+  Matter.Events.on(RCEngine, 'afterTick', function () {
+    RCEngine.world.bodies.forEach(function (body) {
+      if (body.playerId) console.log('player position:', body.position)
+    })
+  })
+  setTimeout(function () {
+    console.log('disabling engine')
+    RCEngine.enabled = false
+  }, 1000)
 }
 
 function newTurn () {
@@ -130,7 +139,8 @@ function resumeTurn () {
   .forEach(function (playerBody) {
     var player = game.players.filter(function (p) { return p._id == playerBody.playerId })[0]
     var playerPosition = getPositionForPlayer(player)
-    playerBody.position = playerPosition
+    if (playerPosition) playerBody.position = playerPosition
+    else console.log('Player', player.name, 'has no position')
   })
 
   setTimeout(function () {
@@ -143,21 +153,15 @@ function resumeTurn () {
 }
 
 function endTurn () {
-
-///////////////
+  var game = Games.findOne()
+  console.log('turn ended, simulating')
   simulateMoves(game.turns[game.turns.length - 1], function () {
 
   })
-////////////////
 }
 
 function waitForNewTurn () {
   console.log('Waiting for previous turn to finish')
-}
-
-function arePlayersReady (cb) {
-  console.log('Are players ready?')
-  cb(false) // Work out if players are ready
 }
 
 function getGameState (cb) {
@@ -170,7 +174,9 @@ function getGameState (cb) {
 
 function startAiming () {
   waitForAim(function (angle1) {
+    console.log('got angle 1', angle1)
     waitForAim(function (angle2) {
+      console.log('got angle 2', angle2)
       Meteor.call(
         'declareMove',
         Games.findOne()._id,
@@ -204,11 +210,12 @@ function initEngine (cb) {
 function initWorld () {
   RCEngine.world.gravity = { x: 0, y: 0 }
   Games.findOne().players.forEach(addPlayerToStage)
+  addBoundsToStage()
 }
 
 function getBodyForPlayer (player) {
   var playerPosition = getPositionForPlayer(player)
-  return Matter.Bodies.circle(playerPosition.x, playerPosition.y, 10)
+  if (playerPosition) return Matter.Bodies.circle(playerPosition.x, playerPosition.y, 10)
 }
 
 function getPositionForPlayer (player) {
@@ -216,19 +223,30 @@ function getPositionForPlayer (player) {
   var playerPosition = game.currentTurn.positions.filter(function (position) {
     return position.playerId === player._id
   })[0]
-  return playerPosition.position
+  if (playerPosition) return playerPosition.position
 }
 
 function addPlayerToStage (player) {
   var playerBody = getBodyForPlayer(player)
+  if (!playerBody) return
   playerBody.playerId = player._id
   console.log('Adding player', player.name, 'at', playerBody.position)
   Matter.World.addBody(RCEngine.world, playerBody)
 }
 
-function addTestBodyToStage (x, y) {
-  var testBody = Matter.Bodies.circle(x, y, 10)
-  Matter.World.addBody(RCEngine.world, testBody)
+function addBoundsToStage () {
+  var bounds = {
+    x: Config.world.boundsX,
+    y: Config.world.boundsY
+  }
+  var leftWall = Matter.Bodies.rectangle(0, bounds.y / 2, 10, bounds.y, { isStatic: true })
+  Matter.World.addBody(RCEngine.world, leftWall)
+  var rightWall = Matter.Bodies.rectangle(bounds.x, bounds.y / 2, 10, bounds.y, { isStatic: true })
+  Matter.World.addBody(RCEngine.world, rightWall)
+  var topWall = Matter.Bodies.rectangle(bounds.x / 2, 0, bounds.x, 10, { isStatic: true })
+  Matter.World.addBody(RCEngine.world, topWall)
+  var bottomWall = Matter.Bodies.rectangle(bounds.x / 2, bounds.y, bounds.x, 10, { isStatic: true })
+  Matter.World.addBody(RCEngine.world, bottomWall)
 }
 
 function resizeWorldAndUI () {
@@ -294,7 +312,7 @@ function waitForAim (cb) {
     })
   })
   hammer.on('panend', function (e) {
-    hammer.off('pan')
+    hammer.off('panstart pan panend')
     cb(e.angle)
   })
 }
