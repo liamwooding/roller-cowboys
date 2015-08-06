@@ -111,6 +111,11 @@ function simulateMoves (turn, cb) {
       if (haveAllPlayersStopped) {
         console.log('All players have stopped')
         RCEngine.enabled = false
+
+        var playerBody = RCEngine.world.bodies.filter(function (p) {
+          return p.playerId && p.playerId === localStorage.playerId
+        })[0]
+        Meteor.call('declarePosition', Games.findOne()._id, playerBody.playerId, playerBody.position)
       }
     })
   }, 1000)

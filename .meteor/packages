@@ -15,3 +15,6 @@ meteorhacks:npm
 npm-container
 flemay:less-autoprefixer
 bootswatch:paper
+accounts-base
+accounts-password
+accounts-ui-unstyled

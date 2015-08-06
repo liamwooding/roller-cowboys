@@ -15,8 +15,7 @@ header#header
               | Home
               span.sr-only (current)
         ul.nav.navbar-nav.navbar-right
-          li
-            a(href='/login') Log in
+          +loginButtons
 .container
   h2 Start a new game
   form#new-game(action='/new-game')

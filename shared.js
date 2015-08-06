@@ -70,6 +70,42 @@ Meteor.methods({
       )
     }
   },
+  declarePosition: function (gameId, playerId, position) {
+    if (Meteor.isServer) {
+      Games.update(
+        { _id: gameId, 'currentTurn.positions.playerId': playerId },
+        {
+          $set: {
+            'currentTurn.positions.$': {
+              playerId: playerId,
+              position: position
+            }
+          }
+        },
+        function (err, affected) {
+          if (err) return console.error(err)
+          console.log('set turn', affected)
+          if (affected) return Meteor.call('checkForTurnEnded', gameId)
+          Games.update(
+            { _id: gameId },
+            {
+              $push: {
+                'currentTurn.positions': {
+                  playerId: playerId,
+                  position: position
+                }
+              }
+            },
+            function (err, affected) {
+              if (err) return console.error(err)
+              console.log('pushed turn', affected)
+              Meteor.call('checkForTurnEnded', gameId)
+            }
+          )
+        }
+      )
+    }
+  },
   joinGame: function (gameId, playerId) {
     if (Meteor.isServer) {
       var player = Players.findOne({ _id: playerId })
