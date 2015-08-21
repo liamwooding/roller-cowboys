@@ -101,6 +101,17 @@ Meteor.methods({
           function (err) {
             if (err) throw new Meteor.Error('500', err)
             includeJoinedPlayers()
+            Players.update(
+              { gameId: player.gameId },
+              {
+                $set: {
+                  state: 'ready'
+                }
+              },
+              function (err) {
+                if (err) throw new Meteor.Error('500', err)
+              }
+            )
           }
         )
       }
