@@ -6,12 +6,29 @@ var UI = {
   aimLine: null
 }
 var clientState
+// After adding a body, we should wait til the next frame to stop the engine
+var disableEngineNextFrame = _.debounce(disableEngine, 34)
 
 Template.playGame.onRendered(function () {
-  Games.find().observeChanges({
+  var template = this
+  template.observers = template.observers || {}
+
+  template.observers.games = Games.find().observeChanges({
     changed: function (gameId, fields) {
-      console.log(fields)
+      console.log('The game changed:', fields)
       if (fields.state) syncState(fields.state)
+    }
+  })
+
+  template.observers.players = Players.find().observe({
+    added: function (player) {
+      console.log('Player joined:', player)
+      if (player.state !== 'ready') return
+      if (!RCEngine) return
+      console.log('adding player now')
+      enableEngine(RCEngine)
+      addPlayerToStage(player)
+      disableEngineNextFrame()
     }
   })
 
@@ -21,13 +38,9 @@ Template.playGame.onRendered(function () {
       initWorld(RCEngine)
       initUI()
       initHammer()
-
-      Players.find().observe({
-        added: function (player) {
-          console.log('Player joined:', player)
-          if (player.state === 'ready') addPlayerToStage(player)
-        }
-      })
+      console.log('Sub ready, adding players')
+      Players.find({ state: 'ready' }).fetch().forEach(addPlayerToStage)
+      disableEngineNextFrame()
 
       $(window).on('resize', resizeWorldAndUI)
       resizeWorldAndUI()
@@ -38,6 +51,12 @@ Template.playGame.onRendered(function () {
       syncState(Games.findOne().state)
     })
   })
+})
+
+Template.playGame.onDestroyed(function () {
+  var template = this
+  this.observers.games.stop()
+  this.observers.players.stop()
 })
 
 Template.playGame.events({
@@ -100,7 +119,7 @@ function simulateTurn () {
     Matter.Body.applyForce(body, body.position, finalVector)
   })
 
-  RCEngine.enabled = true
+  enableEngine(RCEngine)
 
   setTimeout(function () {
     Matter.Events.on(RCEngine, 'afterTick', function () {
@@ -110,7 +129,7 @@ function simulateTurn () {
       })
       if (haveAllPlayersStopped) {
         console.log('All players have stopped')
-        RCEngine.enabled = false
+        disableEngine(RCEngine)
 
         var thisPlayer = Players.findOne({ userId: Meteor.userId() })
 
@@ -143,6 +162,17 @@ function startAiming () {
   })
 }
 
+function enableEngine (engine) {
+  console.log('Enabling engine')
+  engine.enabled = true
+}
+
+function disableEngine (engine) {
+  console.log('Disabling engine')
+  if (engine) engine.enabled = false
+  else RCEngine.enabled = false
+}
+
 function initEngine (cb) {
   var sceneWidth = $('#stage').innerWidth()
   var sceneHeight = sceneWidth * 0.5
@@ -160,11 +190,6 @@ function initEngine (cb) {
   engine.enableSleeping = true
   Matter.Engine.run(engine)
 
-  setTimeout(function () {
-    console.log('disabling engine')
-    engine.enabled = false
-  })
-
   cb(engine)
 }
 
@@ -179,6 +204,7 @@ function getBodyForPlayer (player) {
 }
 
 function addPlayerToStage (player) {
+  if (RCEngine.world.bodies.some(function (body) { body.playerId && body.playerId === player._id })) return
   var playerBody = getBodyForPlayer(player)
   playerBody.playerId = player._id
   playerBody.frictionAir = 0.1
