@@ -14,10 +14,10 @@ Meteor.methods({
     Games.insert({
       name: name,
       state: 'ready'
-    }, function (err, id) {
+    }, function (err, gameId) {
       if (err) throw new Meteor.Error('500', err)
       Players.insert({
-        gameId: id,
+        gameId: gameId,
         userId: Meteor.userId(),
         state: 'has-created-game',
         name: Meteor.user().emails[0].address,
@@ -52,7 +52,7 @@ Meteor.methods({
           if (err) throw new Meteor.Error('500', err)
 
           var countUndeclaredPlayers = Players.find({ gameId: player.gameId, state: { $ne: 'has-shot' }}).count()
-          console.log('Undeclared players:', countUndeclaredPlayers)
+          console.log('Players yet to declare move:', countUndeclaredPlayers)
           if (countUndeclaredPlayers !== 0) return
           Games.update(
             { _id: player.gameId },
@@ -88,7 +88,7 @@ Meteor.methods({
           if (err) throw new Meteor.Error('500', err)
 
           var countUndeclaredPlayers = Players.find({ gameId: player.gameId, state: { $ne: 'has-moved' }}).count()
-          console.log('Undeclared players:', countUndeclaredPlayers)
+          console.log('Players yet to declare position:', countUndeclaredPlayers)
           if (countUndeclaredPlayers !== 0) return
           Games.update(
             { _id: player.gameId },
@@ -109,20 +109,17 @@ Meteor.methods({
     if (Meteor.isServer) {
       console.log('adding Player with userId', userId, 'to game', gameId)
 
-      Players.count({ gameId: gameId, userId: userId }, function (err, count) {
-        if (err) throw new Meteor.Error('500', err)
-        if (count) throw new Meteor.Error('409', 'You joined this game already')
-        Players.insert(
-          {
-            userId: userId,
-            gameId: gameId,
-            position: {
-              x: getRandomInt(0, Config.world.boundsX),
-              y: getRandomInt(0, Config.world.boundsY)
-            },
-            ready: true
-          }
-        )
+      var existingPlayerCount = Players.find({ gameId: gameId, userId: userId }).count()
+      if (existingPlayerCount) throw new Meteor.Error('409', 'You joined this game already')
+      Players.insert({
+        gameId: gameId,
+        userId: userId,
+        state: 'has-joined',
+        name: Meteor.user().emails[0].address,
+        position: {
+          x: getRandomInt(0, Config.world.boundsX),
+          y: getRandomInt(0, Config.world.boundsY)
+        },
       }, function (err) {
         if (err) throw new Meteor.Error('500', err)
       })

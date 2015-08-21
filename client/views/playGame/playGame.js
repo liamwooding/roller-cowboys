@@ -33,15 +33,18 @@ Template.playGame.onRendered(function () {
   })
 })
 
+Template.playGame.events({
+  'click .btn-join-game': function () {
+    Meteor.call('joinGame', Games.findOne()._id, Meteor.userId())
+  }
+})
+
 Template.playGame.helpers({
   players: function () {
     return Players.find().fetch()
   },
   player: function () {
-    return Players.findOne({ _id: localStorage.playerId })
-  },
-  hasJoined: function () {
-    return Games.findOne({ 'players._id': localStorage.playerId })
+    return Players.findOne({ userId: Meteor.userId() })
   },
   game: function () {
     return Games.findOne()
@@ -108,6 +111,7 @@ function simulateTurn () {
           return p.playerId && p.playerId === thisPlayer._id
         })[0]
         Meteor.call('declarePosition', thisPlayer._id, playerBody.position)
+        Matter.Events.off(RCEngine, 'afterTick')
       }
     })
   }, 1000)
