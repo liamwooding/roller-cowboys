@@ -1,0 +1,18 @@
+/* CSS declarations go here */
+#stage {
+  position: relative;
+  min-height: 100px;
+}
+#world {
+  transform-origin: top left;
+  visibility: hidden;
+  &.ready {
+    visibility: visible;
+  }
+}
+#ui {
+  position: absolute;
+  top: 0;
+  width: 100%;
+  height: 100%;
+}

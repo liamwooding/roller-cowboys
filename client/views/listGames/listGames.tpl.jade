@@ -1,0 +1,14 @@
+h2 Start a new game
+form#new-game(action='/new-game')
+  input(type='text' name='name' required)
+  button.new-game(type='submit') Create game
+h2 Active games:
+if isReady 'games'
+  ul
+    each games
+      li
+        a(href='/games/#{_id}') #{name}
+        span  - 
+        a.btn-delete-game(href='#' data-game-id='#{_id}') Delete
+else
+  p Looking for games...
