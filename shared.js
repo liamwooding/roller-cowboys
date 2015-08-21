@@ -76,10 +76,11 @@ Meteor.methods({
     var context = this
     var player = Players.findOne({ _id: playerId })
     if (!player) throw new Meteor.Error('404')
+    console.log('updating player with state', player.state)
     if (context.userId !== player.userId) throw new Meteor.Error('401')
 
     Players.update(
-      { _id: playerId },
+      { _id: playerId, state: { $ne: 'hit' } },
       {
         $set: {
           position: position,
@@ -89,9 +90,10 @@ Meteor.methods({
       function (err) {
         if (err) throw new Meteor.Error('500', err)
 
-        var countUndeclaredPlayers = Players.find({ gameId: player.gameId, state: { $ne: 'has-moved' }}).count()
+        var countUndeclaredPlayers = Players.find({ gameId: player.gameId, state: { $nin: ['has-moved', 'hit'] }}).count()
         console.log('Players yet to declare position:', countUndeclaredPlayers)
         if (countUndeclaredPlayers !== 0) return
+        console.log('setting all players to ready')
         Games.update(
           { _id: player.gameId },
           {
@@ -109,6 +111,7 @@ Meteor.methods({
                   state: 'ready'
                 }
               },
+              { multi: true },
               function (err) {
                 if (err) throw new Meteor.Error('500', err)
               }
@@ -142,7 +145,6 @@ Meteor.methods({
     if (!Meteor.isServer) return
     var context = this
     Players.update({ _id: shooterId }, { $inc: { score: 1 } }, function (err, affected) {
-      console.log('updated', affected, 'players')
       if (err) throw new Meteor.Error('500', err)
       Players.update(
         { _id: targetId },
@@ -151,8 +153,13 @@ Meteor.methods({
             position: {
               x: getRandomInt(0, Config.world.boundsX),
               y: getRandomInt(0, Config.world.boundsY)
-            }
+            },
+            state: 'hit'
           }
+        },
+        function (err, affected) {
+          if (err) throw new Meteor.Error('500', err)
+          console.log('moved', affected, 'players')
         }
       )
     })
@@ -160,7 +167,7 @@ Meteor.methods({
 })
 
 function includeJoinedPlayers (gameId) {
-  Players.update({ gameId: gameId, state: 'has-joined' }, { $set: { state: 'ready' } })
+  Players.update({ gameId: gameId, state: 'has-joined' }, { $set: { state: 'ready' } }, { multi: true })
 }
 
 function getRandomInt(min, max) {

@@ -32,6 +32,13 @@ Template.playGame.onRendered(function () {
     }
   })
 
+  template.observers.playerChanges = Players.find().observeChanges({
+    changed: function (playerId, fields) {
+      if (!fields.position) return
+      updatePositionOfPlayer(playerId, fields.position)
+    }
+  })
+
   FlowRouter.subsReady('game', function () {
     initEngine(function (engine) {
       RCEngine = engine
@@ -55,8 +62,9 @@ Template.playGame.onRendered(function () {
 
 Template.playGame.onDestroyed(function () {
   var template = this
-  this.observers.games.stop()
-  this.observers.players.stop()
+  Object.keys(template.observers).forEach(function (key) {
+    template.observers[key].stop()
+  })
 })
 
 Template.playGame.events({
@@ -229,6 +237,11 @@ function handleBulletCollision (bullet, object) {
       Matter.RenderPixi.clear(RCEngine.render)
     }
   })
+}
+
+function updatePositionOfPlayer (playerId, position) {
+  var playerBody = RCEngine.world.bodies.filter(function (p) { return p.playerId === playerId })[0]
+  Matter.Body.setPosition(playerBody, position)
 }
 
 function getBodyForPlayer (player) {
