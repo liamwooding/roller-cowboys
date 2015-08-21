@@ -6,7 +6,12 @@ Config = {
   world: {
     boundsX: 1280,
     boundsY: 640
-  }
+  },
+  startPositions: [
+    { x: 480, y: 440 },
+    { x: 800, y: 440 },
+    { x: 640, y: 200 }
+  ]
 }
 
 Meteor.methods({
@@ -23,10 +28,7 @@ Meteor.methods({
         state: 'ready',
         name: Meteor.user().emails[0].address,
         score: 0,
-        position: {
-          x: getRandomInt(0, Config.world.boundsX),
-          y: getRandomInt(0, Config.world.boundsY)
-        },
+        position: Config.startPositions[0],
       }, function (err, playerId) {
         if (err) throw new Meteor.Error('500', err)
         console.log('Player with ID', playerId, 'created game with ID', gameId)
@@ -126,16 +128,15 @@ Meteor.methods({
     var existingPlayerCount = Players.find({ gameId: gameId, userId: userId }).count()
     if (existingPlayerCount) throw new Meteor.Error('409', 'You joined this game already')
     var game = Games.findOne({ _id: gameId })
+    var numberOfPlayers = Players.find({ gameId: gameId }).count()
+    if (numberOfPlayers >= 3) throw new Meteor.Error('403', 'Game is full!')
     Players.insert({
       gameId: gameId,
       userId: userId,
       state: game.state === 'ready' ? 'ready' : 'has-joined',
       name: Meteor.user().emails[0].address,
       score: 0,
-      position: {
-        x: getRandomInt(0, Config.world.boundsX),
-        y: getRandomInt(0, Config.world.boundsY)
-      },
+      position: Config.startPositions[numberOfPlayers],
     }, function (err, playerId) {
       if (err) throw new Meteor.Error('500', err)
       console.log('Player with ID', playerId, 'joined game with ID', gameId)
