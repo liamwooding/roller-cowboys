@@ -166,28 +166,10 @@ function createBullet (player, vector) {
   var bullet = Matter.Bodies.circle(startPosition.x, startPosition.y, 2)
 
   Matter.Body.applyForce(bullet, startPosition, vector.divide({ x: 50000, y: 50000 }))
-  bullet.shooter = player._id
+  bullet.label = 'bullet'
+  bullet.shooterId = player._id
   bullet.frictionAir = 0
   Matter.World.addBody(RCEngine.world, bullet)
-}
-
-function startAiming () {
-  waitForAim(function (angle1) {
-    console.log('got angle 1', angle1)
-    waitForAim(function (angle2) {
-      console.log('got angle 2', angle2)
-      var player = Players.findOne({ userId: Meteor.userId() })
-      Meteor.call(
-        'declareMove',
-        player._id,
-        { 0: angle1, 1: angle2 },
-        function (err) {
-          if (err) return console.error(err)
-          console.log('declared move')
-        }
-      )
-    })
-  })
 }
 
 function enableEngine (engine) {
@@ -230,8 +212,8 @@ function initCollisionListeners () {
   Matter.Events.on(RCEngine, 'collisionStart', function (e) {
     e.pairs.forEach(function (pair) {
       // Need to handle case that both bodies are bullets
-      if (pair.bodyA.shooter) handleBulletCollision(pair.bodyA, pair.bodyB)
-      if (pair.bodyB.shooter) handleBulletCollision(pair.bodyB, pair.bodyA)
+      if (pair.bodyA.label === 'bullet') handleBulletCollision(pair.bodyA, pair.bodyB)
+      if (pair.bodyB.label === 'bullet') handleBulletCollision(pair.bodyB, pair.bodyA)
     })
   })
 }
@@ -241,20 +223,23 @@ function handleBulletCollision (bullet, object) {
     if (body.id === bullet.id) {
       console.log('Removing body', body)
       Matter.World.remove(RCEngine.world, body)
+      Matter.RenderPixi.clear(RCEngine.render)
     }
   })
 }
 
 function getBodyForPlayer (player) {
   if (!player.position || (!player.position.x && !player.position.y)) return console.error('No position for player:', player)
-  return Matter.Bodies.circle(player.position.x, player.position.y, 10)
+  var body = Matter.Bodies.circle(player.position.x, player.position.y, 10)
+  body.label = 'player'
+  body.playerId = player._id
+  body.frictionAir = 0.1
+  return body
 }
 
 function addPlayerToStage (player) {
   if (RCEngine.world.bodies.some(function (body) { body.playerId && body.playerId === player._id })) return
   var playerBody = getBodyForPlayer(player)
-  playerBody.playerId = player._id
-  playerBody.frictionAir = 0.1
   console.log('Adding player', player.name, 'at', playerBody.position)
   Matter.World.addBody(RCEngine.world, playerBody)
 }
@@ -301,6 +286,25 @@ function initUI () {
   UI.stage.addChild(UI.aimLine)
 
   UI.renderer.render(UI.stage)
+}
+
+function startAiming () {
+  waitForAim(function (angle1) {
+    console.log('got angle 1', angle1)
+    waitForAim(function (angle2) {
+      console.log('got angle 2', angle2)
+      var player = Players.findOne({ userId: Meteor.userId() })
+      Meteor.call(
+        'declareMove',
+        player._id,
+        { 0: angle1, 1: angle2 },
+        function (err) {
+          if (err) return console.error(err)
+          console.log('declared move')
+        }
+      )
+    })
+  })
 }
 
 function drawAimLine (center, angle, distance) {
