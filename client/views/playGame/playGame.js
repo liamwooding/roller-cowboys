@@ -22,6 +22,13 @@ Template.playGame.onRendered(function () {
       initUI()
       initHammer()
 
+      Players.find().observe({
+        added: function (player) {
+          console.log('Player joined:', player)
+          if (player.state === 'ready') addPlayerToStage(player)
+        }
+      })
+
       $(window).on('resize', resizeWorldAndUI)
       resizeWorldAndUI()
       $('#world').addClass('ready')
@@ -117,107 +124,6 @@ function simulateTurn () {
   }, 1000)
 }
 
-// function simulateMoves (turn, cb) {
-//   turn.moves.forEach(function (move) {
-//     var body = RCEngine.world.bodies.filter(function (p) {
-//       return p.playerId && p.playerId === move.playerId
-//     })[0]
-//     if (!body) return
-
-//     var shotVectors = Object.keys(move.action).map(function (key) {
-//       return new Victor(1,0).rotateDeg(move.action[key])
-//     })
-
-//     var finalVector = shotVectors.reduce(function (previous, vector) {
-//       return vector.add(previous)
-//     })
-//     .divide({ x: 200, y: 200 })
-//     console.log(body, finalVector)
-//     body.force = { x: 0, y: 0 }
-//     Matter.Body.applyForce(body, body.position, finalVector)
-//   })
-
-//   RCEngine.enabled = true
-
-//   setTimeout(function () {
-//     Matter.Events.on(RCEngine, 'afterTick', function () {
-//       var haveAllPlayersStopped = RCEngine.world.bodies.every(function (body) {
-//         if (!body.playerId) return true
-//         return body.isSleeping
-//       })
-//       if (haveAllPlayersStopped) {
-//         console.log('All players have stopped')
-//         RCEngine.enabled = false
-
-//         var playerBody = RCEngine.world.bodies.filter(function (p) {
-//           return p.playerId && p.playerId === localStorage.playerId
-//         })[0]
-//         Meteor.call('declarePosition', Games.findOne()._id, playerBody.playerId, playerBody.position)
-//       }
-//     })
-//   }, 1000)
-// }
-
-// function newTurn () {
-//   console.log('A new turn has begun')
-//   var game = Games.findOne()
-
-//   RCEngine.world.bodies.filter(function (p) { return p.playerId })
-//   .forEach(function (playerBody) {
-//     var player = game.players.filter(function (p) { return p._id == playerBody.playerId })[0]
-//     var playerPosition = getPositionForPlayer(player)
-//     playerBody.position = playerPosition
-//   })
-
-//   setTimeout(function () {
-//     // For whatever reason, we need to wait a tick before disabling it. Investigation needed.
-//     console.log('disabling engine')
-//     RCEngine.enabled = false
-//   })
-
-//   startAiming()
-// }
-
-// function resumeTurn () {
-//   console.log('Resuming play')
-//   var game = Games.findOne()
-//   RCEngine.world.bodies.filter(function (p) { return p.playerId })
-//   .forEach(function (playerBody) {
-//     var player = game.players.filter(function (p) { return p._id == playerBody.playerId })[0]
-//     var playerPosition = getPositionForPlayer(player)
-//     if (playerPosition) playerBody.position = playerPosition
-//     else console.log('Player', player.name, 'has no position')
-//   })
-
-//   setTimeout(function () {
-//     // For whatever reason, we need to wait a tick before disabling it. Investigation needed.
-//     console.log('disabling engine')
-//     RCEngine.enabled = false
-//   })
-
-//   startAiming()
-// }
-
-// function endTurn () {
-//   var game = Games.findOne()
-//   console.log('turn ended, simulating')
-//   simulateMoves(game.turns[game.turns.length - 1], function () {
-
-//   })
-// }
-
-// function waitForNewTurn () {
-//   console.log('Waiting for previous turn to finish')
-// }
-
-// function getGameState (cb) {
-//   var game = Games.findOne()
-//   if (!game.players.some(function (p) { return p._id === localStorage.playerId }))
-//     return cb(0)
-//   return cb(1)
-//   // TODO: Need to handle the case that the previous turn is still playing out
-// }
-
 function startAiming () {
   waitForAim(function (angle1) {
     console.log('got angle 1', angle1)
@@ -254,12 +160,16 @@ function initEngine (cb) {
   engine.enableSleeping = true
   Matter.Engine.run(engine)
 
+  setTimeout(function () {
+    console.log('disabling engine')
+    engine.enabled = false
+  })
+
   cb(engine)
 }
 
 function initWorld () {
   RCEngine.world.gravity = { x: 0, y: 0 }
-  Players.find().fetch().forEach(addPlayerToStage)
   addBoundsToStage()
 }
 

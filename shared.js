@@ -19,14 +19,15 @@ Meteor.methods({
       Players.insert({
         gameId: gameId,
         userId: Meteor.userId(),
-        state: 'has-created-game',
+        state: 'ready',
         name: Meteor.user().emails[0].address,
         position: {
           x: getRandomInt(0, Config.world.boundsX),
           y: getRandomInt(0, Config.world.boundsY)
         },
-      }, function (err) {
+      }, function (err, playerId) {
         if (err) throw new Meteor.Error('500', err)
+        console.log('Player with ID', playerId, 'created game with ID', gameId)
       })
     })
   },
@@ -99,6 +100,7 @@ Meteor.methods({
             },
             function (err) {
               if (err) throw new Meteor.Error('500', err)
+              includeJoinedPlayers()
             }
           )
         }
@@ -107,25 +109,29 @@ Meteor.methods({
   },
   joinGame: function (gameId, userId) {
     if (Meteor.isServer) {
-      console.log('adding Player with userId', userId, 'to game', gameId)
-
       var existingPlayerCount = Players.find({ gameId: gameId, userId: userId }).count()
       if (existingPlayerCount) throw new Meteor.Error('409', 'You joined this game already')
+      var game = Games.findOne({ _id: gameId })
       Players.insert({
         gameId: gameId,
         userId: userId,
-        state: 'has-joined',
+        state: game.state === 'ready' ? 'ready' : 'has-joined',
         name: Meteor.user().emails[0].address,
         position: {
           x: getRandomInt(0, Config.world.boundsX),
           y: getRandomInt(0, Config.world.boundsY)
         },
-      }, function (err) {
+      }, function (err, playerId) {
         if (err) throw new Meteor.Error('500', err)
+        console.log('Player with ID', playerId, 'joined game with ID', gameId)
       })
     }
   }
 })
+
+function includeJoinedPlayers (gameId) {
+  Players.update({ gameId: gameId, state: 'has-joined' }, { $set: { state: 'ready' } })
+}
 
 function getRandomInt(min, max) {
   return Math.floor(Math.random() * (max - min + 1)) + min
