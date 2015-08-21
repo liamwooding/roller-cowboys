@@ -1,7 +1,17 @@
 .row
-  .col-xs-6
-    h1= game.name
-  .col-xs-6.text-right
+  .col-sm-4
+    h2.h4= game.name
+  .col-sm-6
+    if isReady 'game'
+      if game
+        span Playing against:
+        each players
+          span.player-name= this.name
+      else
+        h2 404!  
+    else
+      p Loading...
+  .col-sm-2.text-right
     if player
       button.btn.btn-secondary.btn-leave-game Leave game
     else
@@ -11,14 +21,6 @@
   #world
   #ui
 
-if isReady 'game'
-  if game
-    h4 Players:
-    ul
-      each players
-        li
-          span= this.name
-  else
-    h2 404!  
-else
-  p Loading...
+.row
+  .col-xs-6
+    

@@ -22,6 +22,7 @@ Meteor.methods({
         userId: Meteor.userId(),
         state: 'ready',
         name: Meteor.user().emails[0].address,
+        score: 0,
         position: {
           x: getRandomInt(0, Config.world.boundsX),
           y: getRandomInt(0, Config.world.boundsY)
@@ -127,6 +128,7 @@ Meteor.methods({
       userId: userId,
       state: game.state === 'ready' ? 'ready' : 'has-joined',
       name: Meteor.user().emails[0].address,
+      score: 0,
       position: {
         x: getRandomInt(0, Config.world.boundsX),
         y: getRandomInt(0, Config.world.boundsY)

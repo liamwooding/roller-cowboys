@@ -11,9 +11,7 @@ template(name='header')
           a.navbar-brand(href='/') Roller Cowboys
         #rollercowboys-mobile-nav.collapse.navbar-collapse
           ul.nav.navbar-nav
-            li.active
-              a(href='/')
-                | Home
-                span.sr-only (current)
+            li
+              a(href='/') Home
           .nav.navbar-nav.navbar-right
             +atNavButton
