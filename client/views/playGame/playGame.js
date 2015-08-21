@@ -219,6 +219,9 @@ function initCollisionListeners () {
 }
 
 function handleBulletCollision (bullet, object) {
+  if (object.label === 'player' && bullet.shooterId === getPlayer()._id) {
+    Meteor.call('hitPlayer', getPlayer()._id, object.playerId)
+  }
   RCEngine.world.bodies.forEach(function (body, i) {
     if (body.id === bullet.id) {
       console.log('Removing body', body)
@@ -344,4 +347,8 @@ function waitForAim (cb) {
     hammer.off('panstart pan panend')
     cb(e.angle)
   })
+}
+
+function getPlayer () {
+  return Players.findOne({ userId: Meteor.userId() })
 }

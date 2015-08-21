@@ -137,6 +137,25 @@ Meteor.methods({
       if (err) throw new Meteor.Error('500', err)
       console.log('Player with ID', playerId, 'joined game with ID', gameId)
     })
+  },
+  hitPlayer: function (shooterId, targetId) {
+    if (!Meteor.isServer) return
+    var context = this
+    Players.update({ _id: shooterId }, { $inc: { score: 1 } }, function (err, affected) {
+      console.log('updated', affected, 'players')
+      if (err) throw new Meteor.Error('500', err)
+      Players.update(
+        { _id: targetId },
+        {
+          $set: {
+            position: {
+              x: getRandomInt(0, Config.world.boundsX),
+              y: getRandomInt(0, Config.world.boundsY)
+            }
+          }
+        }
+      )
+    })
   }
 })
 

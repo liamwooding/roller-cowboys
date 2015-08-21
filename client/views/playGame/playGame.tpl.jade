@@ -1,26 +1,21 @@
 .row
-  .col-sm-4
-    h2.h4= game.name
   .col-sm-6
+    h2.h4 #{game.name}
+      if player
+        button.btn.btn-secondary.btn-leave-game(disabled title='Not wired up yet') Leave game
+      else
+        button.btn.btn-primary.btn-join-game Join game
+  .col-sm-6.text-right
     if isReady 'game'
       if game
-        span Playing against:
+        span Players:
         each players
-          span.player-name= this.name
+          strong.player-name #{this.name} (#{this.score})
       else
         h2 404!  
     else
       p Loading...
-  .col-sm-2.text-right
-    if player
-      button.btn.btn-secondary.btn-leave-game Leave game
-    else
-      button.btn.btn-primary.btn-join-game Join game
 
 #stage
   #world
   #ui
-
-.row
-  .col-xs-6
-    
