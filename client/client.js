@@ -1,3 +1,5 @@
+FlowLayout.setRoot('#content')
+
 Template.body.onRendered(function () {
 
 })

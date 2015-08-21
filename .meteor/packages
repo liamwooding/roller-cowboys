@@ -18,3 +18,4 @@ bootswatch:paper
 accounts-base
 accounts-password
 accounts-ui-unstyled
+useraccounts:bootstrap
