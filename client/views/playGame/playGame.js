@@ -6,7 +6,7 @@ var UI = {
   aimLine: null
 }
 var clientState
-// After adding a body, we should wait til the next frame to stop the engine
+// After adding a body, we should wait til the next frame to stop the engine.
 var disableEngineNextFrame = _.debounce(disableEngine, 34)
 
 Template.playGame.onRendered(function () {
@@ -36,9 +36,9 @@ Template.playGame.onRendered(function () {
     initEngine(function (engine) {
       RCEngine = engine
       initWorld(RCEngine)
+      initCollisionListeners(RCEngine)
       initUI()
       initHammer()
-      console.log('Sub ready, adding players')
       Players.find({ state: 'ready' }).fetch().forEach(addPlayerToStage)
       disableEngineNextFrame()
 
@@ -78,7 +78,7 @@ Template.playGame.helpers({
 })
 
 function syncState (state) {
-  console.log('syncing clientState', clientState, 'with game state', state)
+  console.log('syncing client state', clientState, 'with game state', state)
   if (state === clientState) return
 
   switch (state) {
@@ -100,36 +100,26 @@ function simulateTurn () {
   var players = Players.find().fetch()
 
   players.forEach(function (player) {
-    var body = RCEngine.world.bodies.filter(function (p) {
+    var playerBody = RCEngine.world.bodies.filter(function (p) {
       return p.playerId && p.playerId === player._id
     })[0]
-    if (!body) return console.error('No body found for player:', player)
+    if (!playerBody) return console.error('No body found for player:', player)
 
-    var shotVectors = Object.keys(player.action).map(function (key) {
-      return new Victor(1,0).rotateDeg(player.action[key])
-    })
-
-    var finalVector = shotVectors.reduce(function (previous, vector) {
-      return vector.add(previous)
-    })
-    .divide({ x: 200, y: 200 })
-    .invert()
-
-    body.force = { x: 0, y: 0 }
-    Matter.Body.applyForce(body, body.position, finalVector)
+    playerBody = applyKickbackToPlayer(playerBody, player)
+    createBulletsForPlayer(player)
   })
 
   enableEngine(RCEngine)
 
   setTimeout(function () {
     Matter.Events.on(RCEngine, 'afterTick', function () {
-      var haveAllPlayersStopped = RCEngine.world.bodies.every(function (body) {
-        if (!body.playerId) return true
+      var haveAllObjectsStopped = RCEngine.world.bodies.every(function (body) {
+        if (body.isStatic) return true
         return body.isSleeping
       })
-      if (haveAllPlayersStopped) {
+      if (haveAllObjectsStopped) {
         console.log('All players have stopped')
-        disableEngine(RCEngine)
+        disableEngineNextFrame(RCEngine)
 
         var thisPlayer = Players.findOne({ userId: Meteor.userId() })
 
@@ -141,6 +131,44 @@ function simulateTurn () {
       }
     })
   }, 1000)
+}
+
+function applyKickbackToPlayer (body, player) {
+  var shotVectors = Object.keys(player.action).map(function (key) {
+    return new Victor(1,0).rotateDeg(player.action[key])
+  })
+
+  var kickbackVector = shotVectors.reduce(function (previous, vector) {
+    return vector.add(previous)
+  })
+  .divide({ x: 200, y: 200 })
+  .invert()
+
+  body.force = { x: 0, y: 0 }
+  Matter.Body.applyForce(body, body.position, kickbackVector)
+
+  return player
+}
+
+function createBulletsForPlayer (player) {
+  var shotVectors = Object.keys(player.action).map(function (key) {
+    return new Victor(10,0).rotateDeg(player.action[key])
+  })
+
+  shotVectors.forEach(function (vector) {
+    createBullet(player, vector)
+  })
+}
+
+function createBullet (player, vector) {
+  // Lengthen the vector to be longer than player body's radius
+  var startPosition = Victor(player.position.x, player.position.y).add(vector)
+  var bullet = Matter.Bodies.circle(startPosition.x, startPosition.y, 2)
+
+  Matter.Body.applyForce(bullet, startPosition, vector.divide({ x: 50000, y: 50000 }))
+  bullet.shooter = player._id
+  bullet.frictionAir = 0
+  Matter.World.addBody(RCEngine.world, bullet)
 }
 
 function startAiming () {
@@ -196,6 +224,25 @@ function initEngine (cb) {
 function initWorld () {
   RCEngine.world.gravity = { x: 0, y: 0 }
   addBoundsToStage()
+}
+
+function initCollisionListeners () {
+  Matter.Events.on(RCEngine, 'collisionStart', function (e) {
+    e.pairs.forEach(function (pair) {
+      // Need to handle case that both bodies are bullets
+      if (pair.bodyA.shooter) handleBulletCollision(pair.bodyA, pair.bodyB)
+      if (pair.bodyB.shooter) handleBulletCollision(pair.bodyB, pair.bodyA)
+    })
+  })
+}
+
+function handleBulletCollision (bullet, object) {
+  RCEngine.world.bodies.forEach(function (body, i) {
+    if (body.id === bullet.id) {
+      console.log('Removing body', body)
+      Matter.World.remove(RCEngine.world, body)
+    }
+  })
 }
 
 function getBodyForPlayer (player) {
