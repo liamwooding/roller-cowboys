@@ -5,15 +5,20 @@ Meteor.startup(function () {
     return Games.find({}, { sort: { name: 1 } })
   })
   Meteor.publish('players', function (params) {
-    if (params && params.playerId) return Players.find({ _id: params.playerId })
-    //if (params && params.gameId) return Players.find({ games: params.gameId })
+    if (params && params.gameId) return Players.find({ gameId: params.gameId })
     return Players.find()
+  })
+  Meteor.publish('turns', function (params) {
+    if (params && params.gameId) return Turns.find({ _id: params.gameId })
+    if (params && params.turnId) return Turns.find({ _id: params.turnId })
+    return Turns.find()
   })
 
   // DB permissions
   Players.allow({
-    insert: function () { return true },
-    update: function () { return true }
+    insert: function (userId, player) { return userId === player.userId },
+    update: function (userId, player) { return userId === player.userId },
+    remove: function (userId, player) { return userId === player.userId },
   })
   Games.allow({
     insert: function () { return true },

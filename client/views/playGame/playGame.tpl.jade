@@ -14,9 +14,8 @@ header#header
             a(href='/')
               | Home
               span.sr-only (current)
-        ul.nav.navbar-nav.navbar-right
-          li
-            +(loginButtons)
+        .nav.navbar-nav.navbar-right
+          +loginButtons
 .container
   h1= game.name
 
@@ -36,9 +35,9 @@ header#header
           button.btn-join Join Game
       h4 Players:
       ul
-        each game.players
+        each players
           li
-            span= name
+            span= this.name
     else
       h2 404!  
   else

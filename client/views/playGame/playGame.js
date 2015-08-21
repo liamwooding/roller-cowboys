@@ -5,12 +5,13 @@ var UI = {
   stage: null,
   aimLine: null
 }
+var clientState
 
 Template.playGame.onRendered(function () {
   Games.find().observeChanges({
     changed: function (gameId, fields) {
       console.log(fields)
-      if (fields.turns) endTurn()
+      if (fields.state) syncState(fields.state)
     }
   })
 
@@ -25,19 +26,9 @@ Template.playGame.onRendered(function () {
       resizeWorldAndUI()
       $('#world').addClass('ready')
 
-      getGameState(function (state) {
-        switch (state) {
-          case 0:
-            // User has not joined yet & is spectating
-            return
-          case 1:
-            // Player is returning to a game they had already joined and is expected to declare a move
-            return resumeTurn()
-          case 2:
-            // Player is returning to a game they had already joined and is waiting for the previous turn to play out
-            return waitForNewTurn()
-        }
-      })
+      clientState = null
+
+      syncState(Games.findOne().state)
     })
   })
 })
@@ -57,45 +48,44 @@ Template.playGame.helpers({
   }
 })
 
-Template.playGame.events({
-  'click .btn-end-turn': function () {
-    var player = Players.findOne({_id: localStorage.playerId})
-    var ctx = this
-    var turn = {
-      playerId: player._id,
-      name: player.name,
-      action: 'pushed the button'
-    }
-    Meteor.call('declareMove', ctx.gameId(), action)
-  },
-  'click .btn-join': function () {
-    var ctx = this
-    Meteor.call('joinGame', ctx.gameId(), localStorage.playerId, function (err) {
-      if (err) return console.error(err)
-      var player = Games.findOne().players.filter(function (p) { return p._id === localStorage.playerId })[0]
-      console.log('Player joined: ', player)
-      addPlayerToStage(player)
-      if (Games.findOne().players.length === 1) newTurn()
-    })
+function syncState (state) {
+  console.log('syncing clientState', clientState, 'with game state', state)
+  if (state === clientState) return
+
+  switch (state) {
+    case 'ready':
+      startAiming()
+      clientState = state
+      return
+    case 'waiting-for-moves':
+      clientState = state
+      simulateTurn()
+      return
+    default:
+      console.warn('No case in syncState for state:', state)
+      return
   }
-})
+}
 
-function simulateMoves (turn, cb) {
-  turn.moves.forEach(function (move) {
+function simulateTurn () {
+  var players = Players.find().fetch()
+
+  players.forEach(function (player) {
     var body = RCEngine.world.bodies.filter(function (p) {
-      return p.playerId && p.playerId === move.playerId
+      return p.playerId && p.playerId === player._id
     })[0]
-    if (!body) return
+    if (!body) return console.error('No body found for player:', player)
 
-    var shotVectors = Object.keys(move.action).map(function (key) {
-      return new Victor(1,0).rotateDeg(move.action[key])
+    var shotVectors = Object.keys(player.action).map(function (key) {
+      return new Victor(1,0).rotateDeg(player.action[key])
     })
 
     var finalVector = shotVectors.reduce(function (previous, vector) {
       return vector.add(previous)
     })
     .divide({ x: 200, y: 200 })
-    console.log(body, finalVector)
+    .invert()
+
     body.force = { x: 0, y: 0 }
     Matter.Body.applyForce(body, body.position, finalVector)
   })
@@ -112,85 +102,132 @@ function simulateMoves (turn, cb) {
         console.log('All players have stopped')
         RCEngine.enabled = false
 
+        var thisPlayer = Players.findOne({ userId: Meteor.userId() })
+
         var playerBody = RCEngine.world.bodies.filter(function (p) {
-          return p.playerId && p.playerId === localStorage.playerId
+          return p.playerId && p.playerId === thisPlayer._id
         })[0]
-        Meteor.call('declarePosition', Games.findOne()._id, playerBody.playerId, playerBody.position)
+        Meteor.call('declarePosition', thisPlayer._id, playerBody.position)
       }
     })
   }, 1000)
 }
 
-function newTurn () {
-  console.log('A new turn has begun')
-  var game = Games.findOne()
+// function simulateMoves (turn, cb) {
+//   turn.moves.forEach(function (move) {
+//     var body = RCEngine.world.bodies.filter(function (p) {
+//       return p.playerId && p.playerId === move.playerId
+//     })[0]
+//     if (!body) return
 
-  RCEngine.world.bodies.filter(function (p) { return p.playerId })
-  .forEach(function (playerBody) {
-    var player = game.players.filter(function (p) { return p._id == playerBody.playerId })[0]
-    var playerPosition = getPositionForPlayer(player)
-    playerBody.position = playerPosition
-  })
+//     var shotVectors = Object.keys(move.action).map(function (key) {
+//       return new Victor(1,0).rotateDeg(move.action[key])
+//     })
 
-  setTimeout(function () {
-    // For whatever reason, we need to wait a tick before disabling it. Investigation needed.
-    console.log('disabling engine')
-    RCEngine.enabled = false
-  })
+//     var finalVector = shotVectors.reduce(function (previous, vector) {
+//       return vector.add(previous)
+//     })
+//     .divide({ x: 200, y: 200 })
+//     console.log(body, finalVector)
+//     body.force = { x: 0, y: 0 }
+//     Matter.Body.applyForce(body, body.position, finalVector)
+//   })
 
-  startAiming()
-}
+//   RCEngine.enabled = true
 
-function resumeTurn () {
-  console.log('Resuming play')
-  var game = Games.findOne()
-  RCEngine.world.bodies.filter(function (p) { return p.playerId })
-  .forEach(function (playerBody) {
-    var player = game.players.filter(function (p) { return p._id == playerBody.playerId })[0]
-    var playerPosition = getPositionForPlayer(player)
-    if (playerPosition) playerBody.position = playerPosition
-    else console.log('Player', player.name, 'has no position')
-  })
+//   setTimeout(function () {
+//     Matter.Events.on(RCEngine, 'afterTick', function () {
+//       var haveAllPlayersStopped = RCEngine.world.bodies.every(function (body) {
+//         if (!body.playerId) return true
+//         return body.isSleeping
+//       })
+//       if (haveAllPlayersStopped) {
+//         console.log('All players have stopped')
+//         RCEngine.enabled = false
 
-  setTimeout(function () {
-    // For whatever reason, we need to wait a tick before disabling it. Investigation needed.
-    console.log('disabling engine')
-    RCEngine.enabled = false
-  })
+//         var playerBody = RCEngine.world.bodies.filter(function (p) {
+//           return p.playerId && p.playerId === localStorage.playerId
+//         })[0]
+//         Meteor.call('declarePosition', Games.findOne()._id, playerBody.playerId, playerBody.position)
+//       }
+//     })
+//   }, 1000)
+// }
 
-  startAiming()
-}
+// function newTurn () {
+//   console.log('A new turn has begun')
+//   var game = Games.findOne()
 
-function endTurn () {
-  var game = Games.findOne()
-  console.log('turn ended, simulating')
-  simulateMoves(game.turns[game.turns.length - 1], function () {
+//   RCEngine.world.bodies.filter(function (p) { return p.playerId })
+//   .forEach(function (playerBody) {
+//     var player = game.players.filter(function (p) { return p._id == playerBody.playerId })[0]
+//     var playerPosition = getPositionForPlayer(player)
+//     playerBody.position = playerPosition
+//   })
 
-  })
-}
+//   setTimeout(function () {
+//     // For whatever reason, we need to wait a tick before disabling it. Investigation needed.
+//     console.log('disabling engine')
+//     RCEngine.enabled = false
+//   })
 
-function waitForNewTurn () {
-  console.log('Waiting for previous turn to finish')
-}
+//   startAiming()
+// }
 
-function getGameState (cb) {
-  var game = Games.findOne()
-  if (!game.players.some(function (p) { return p._id === localStorage.playerId }))
-    return cb(0)
-  return cb(1)
-  // TODO: Need to handle the case that the previous turn is still playing out
-}
+// function resumeTurn () {
+//   console.log('Resuming play')
+//   var game = Games.findOne()
+//   RCEngine.world.bodies.filter(function (p) { return p.playerId })
+//   .forEach(function (playerBody) {
+//     var player = game.players.filter(function (p) { return p._id == playerBody.playerId })[0]
+//     var playerPosition = getPositionForPlayer(player)
+//     if (playerPosition) playerBody.position = playerPosition
+//     else console.log('Player', player.name, 'has no position')
+//   })
+
+//   setTimeout(function () {
+//     // For whatever reason, we need to wait a tick before disabling it. Investigation needed.
+//     console.log('disabling engine')
+//     RCEngine.enabled = false
+//   })
+
+//   startAiming()
+// }
+
+// function endTurn () {
+//   var game = Games.findOne()
+//   console.log('turn ended, simulating')
+//   simulateMoves(game.turns[game.turns.length - 1], function () {
+
+//   })
+// }
+
+// function waitForNewTurn () {
+//   console.log('Waiting for previous turn to finish')
+// }
+
+// function getGameState (cb) {
+//   var game = Games.findOne()
+//   if (!game.players.some(function (p) { return p._id === localStorage.playerId }))
+//     return cb(0)
+//   return cb(1)
+//   // TODO: Need to handle the case that the previous turn is still playing out
+// }
 
 function startAiming () {
   waitForAim(function (angle1) {
     console.log('got angle 1', angle1)
     waitForAim(function (angle2) {
       console.log('got angle 2', angle2)
+      var player = Players.findOne({ userId: Meteor.userId() })
       Meteor.call(
         'declareMove',
-        Games.findOne()._id,
-        localStorage.playerId,
-        { 0: angle1, 1: angle2 }
+        player._id,
+        { 0: angle1, 1: angle2 },
+        function (err) {
+          if (err) return console.error(err)
+          console.log('declared move')
+        }
       )
     })
   })
@@ -218,26 +255,17 @@ function initEngine (cb) {
 
 function initWorld () {
   RCEngine.world.gravity = { x: 0, y: 0 }
-  Games.findOne().players.forEach(addPlayerToStage)
+  Players.find().fetch().forEach(addPlayerToStage)
   addBoundsToStage()
 }
 
 function getBodyForPlayer (player) {
-  var playerPosition = getPositionForPlayer(player)
-  if (playerPosition) return Matter.Bodies.circle(playerPosition.x, playerPosition.y, 10)
-}
-
-function getPositionForPlayer (player) {
-  var game = Games.findOne()
-  var playerPosition = game.currentTurn.positions.filter(function (position) {
-    return position.playerId === player._id
-  })[0]
-  if (playerPosition) return playerPosition.position
+  if (!player.position || (!player.position.x && !player.position.y)) return console.error('No position for player:', player)
+  return Matter.Bodies.circle(player.position.x, player.position.y, 10)
 }
 
 function addPlayerToStage (player) {
   var playerBody = getBodyForPlayer(player)
-  if (!playerBody) return
   playerBody.playerId = player._id
   playerBody.frictionAir = 0.1
   console.log('Adding player', player.name, 'at', playerBody.position)
