@@ -105,6 +105,7 @@ function syncState (state) {
 }
 
 function simulateTurn () {
+  console.log('simulating turn')
   var players = Players.find().fetch()
 
   players.forEach(function (player) {
@@ -123,10 +124,11 @@ function simulateTurn () {
   enableEngine(RCEngine)
 
   setTimeout(function () {
+    Matter.Events.off(RCEngine, 'afterTick')
     Matter.Events.on(RCEngine, 'afterTick', function () {
+      cleanupEscapedObjects()
       var haveAllObjectsStopped = RCEngine.world.bodies.every(function (body) {
-        if (body.isStatic) return true
-        return body.isSleeping
+        return body.isStatic || body.isSleeping
       })
       if (haveAllObjectsStopped) {
         console.log('All players have stopped')
@@ -141,7 +143,20 @@ function simulateTurn () {
         Matter.Events.off(RCEngine, 'afterTick')
       }
     })
-  }, 1000)
+  }, 200)
+}
+
+function cleanupEscapedObjects () {
+  RCEngine.world.bodies.forEach(function (body) {
+    if  (body.bounds.min.x > RCEngine.world.bounds.max.x
+      || body.bounds.max.x < RCEngine.world.bounds.min.x
+      || body.bounds.min.y > RCEngine.world.bounds.max.y
+      || body.bounds.max.y < RCEngine.world.bounds.min.y) {
+      console.log('removing out-of-bounds body', body)
+      Matter.World.remove(RCEngine.world, body)
+      Matter.RenderPixi.clear(RCEngine.render)
+    }
+  })
 }
 
 function applyKickbackToPlayer (body, player) {
@@ -190,6 +205,7 @@ function createBullet (player, shotVector, lookVector, shotNumber) {
   bullet.shooterId = player._id
   bullet.frictionAir = 0
   Matter.World.addBody(RCEngine.world, bullet)
+  console.log('bullet',bullet)
 }
 
 function enableEngine (engine) {
@@ -225,6 +241,9 @@ function initEngine (cb) {
 
 function initWorld () {
   RCEngine.world.gravity = { x: 0, y: 0 }
+  RCEngine.world.bounds.min.x = RCEngine.world.bounds.min.y = 0
+  RCEngine.world.bounds.max.x = Config.world.boundsX
+  RCEngine.world.bounds.max.y = Config.world.boundsY
   addBoundsToStage()
 }
 
