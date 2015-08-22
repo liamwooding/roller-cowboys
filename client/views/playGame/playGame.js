@@ -124,15 +124,14 @@ function simulateTurn () {
   enableEngine(RCEngine)
 
   setTimeout(function () {
-    Matter.Events.off(RCEngine, 'afterTick')
-    Matter.Events.on(RCEngine, 'afterTick', function () {
+    Matter.Events.on(RCEngine, 'afterTick', function () { //PROBLEM? This event listener goes beserk sometimes
       cleanupEscapedObjects()
-      var haveAllObjectsStopped = RCEngine.world.bodies.every(function (body) {
+      var haveAllObjectsStopped = Matter.Composite.allBodies(RCEngine.world).every(function (body) {
         return body.isStatic || body.isSleeping
       })
       if (haveAllObjectsStopped) {
         console.log('All players have stopped')
-        disableEngineNextFrame(RCEngine)
+        disableEngine(RCEngine)
 
         var thisPlayer = Players.findOne({ userId: Meteor.userId() })
 
@@ -147,7 +146,7 @@ function simulateTurn () {
 }
 
 function cleanupEscapedObjects () {
-  RCEngine.world.bodies.forEach(function (body) {
+ Matter.Composite.allBodies(RCEngine.world).forEach(function (body) {
     if  (body.bounds.min.x > RCEngine.world.bounds.max.x
       || body.bounds.max.x < RCEngine.world.bounds.min.x
       || body.bounds.min.y > RCEngine.world.bounds.max.y
