@@ -176,27 +176,17 @@ function createBullet (player, shotVector, lookVector, shotNumber) {
   // Lengthen the vector to be longer than player body's radius
   var startPosition = new Victor(player.position.x, player.position.y)
 
-  var angleOffCentre = Math.atan2(shotVector.y, shotVector.x) - Math.atan2(lookVector.y, lookVector.x)
-  console.log('angleOffCentre:', angleOffCentre)
   // PROBLEMS - when aiming left both angles turn out negative. Also, rotation needs investigating
-  if (angleOffCentre > 0 || (angleOffCentre === 0 && shotNumber === 0)) {
-    var offset = lookVector.multiply(new Victor(50, 50)).rotateByDeg(90)
-    console.log(angleOffCentre, 'is greater than or equal to 0:', 'offset 1', offset)
-    startPosition = startPosition.add(offset)
-  }
-  if (angleOffCentre < 0 || (angleOffCentre === 0 && shotNumber === 1)) {
-    var offset = lookVector.multiply(new Victor(50, 50)).rotateByDeg(270)
-    console.log(angleOffCentre, 'is less than or equal to 0:', 'offset 2', offset)
-    startPosition = startPosition.add(offset)
-  }
+  if (shotNumber === 0)
+    startPosition.add(new Victor(0, 5).rotate(lookVector.angle()))
+  if (shotNumber === 1)
+    startPosition.add(new Victor(0, -5).rotate(lookVector.angle()))
 
   startPosition.add(shotVector)
 
   var bullet = Matter.Bodies.circle(startPosition.x, startPosition.y, 1)
 
-  bullet.isStatic = true
-
-  //Matter.Body.applyForce(bullet, startPosition, shotVector.divide({ x: 50000, y: 50000 }))
+  Matter.Body.applyForce(bullet, startPosition, shotVector.divide({ x: 50000, y: 50000 }))
   bullet.label = 'bullet'
   bullet.shooterId = player._id
   bullet.frictionAir = 0
