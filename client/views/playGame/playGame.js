@@ -113,8 +113,11 @@ function simulateTurn () {
     })[0]
     if (!playerBody) return console.error('No body found for player:', player)
 
-    playerBody = applyKickbackToPlayer(playerBody, player)
-    createBulletsForPlayer(player)
+    var kickbackVector = applyKickbackToPlayer(playerBody, player)
+    console.log('kickbackVector:', kickbackVector)
+    var lookVector = kickbackVector.clone().normalize().invert()
+    console.log('lookvector:', lookVector)
+    createBulletsForPlayer(player, lookVector)
   })
 
   enableEngine(RCEngine)
@@ -155,25 +158,45 @@ function applyKickbackToPlayer (body, player) {
   body.force = { x: 0, y: 0 }
   Matter.Body.applyForce(body, body.position, kickbackVector)
 
-  return player
+  return kickbackVector
 }
 
-function createBulletsForPlayer (player) {
+function createBulletsForPlayer (player, lookVector) {
   var shotVectors = Object.keys(player.action).map(function (key) {
     return new Victor(10,0).rotateDeg(player.action[key])
   })
 
-  shotVectors.forEach(function (vector) {
-    createBullet(player, vector)
+  shotVectors.forEach(function (vector, i) {
+    createBullet(player, vector, lookVector.clone(), i)
   })
 }
 
-function createBullet (player, vector) {
+function createBullet (player, shotVector, lookVector, shotNumber) {
+  console.log('creating bullet')
   // Lengthen the vector to be longer than player body's radius
-  var startPosition = Victor(player.position.x, player.position.y).add(vector)
-  var bullet = Matter.Bodies.circle(startPosition.x, startPosition.y, 2)
+  var startPosition = new Victor(player.position.x, player.position.y)
 
-  Matter.Body.applyForce(bullet, startPosition, vector.divide({ x: 50000, y: 50000 }))
+  var angleOffCentre = Math.atan2(shotVector.y, shotVector.x) - Math.atan2(lookVector.y, lookVector.x)
+  console.log('angleOffCentre:', angleOffCentre)
+  // PROBLEMS - when aiming left both angles turn out negative. Also, rotation needs investigating
+  if (angleOffCentre > 0 || (angleOffCentre === 0 && shotNumber === 0)) {
+    var offset = lookVector.multiply(new Victor(50, 50)).rotateByDeg(90)
+    console.log(angleOffCentre, 'is greater than or equal to 0:', 'offset 1', offset)
+    startPosition = startPosition.add(offset)
+  }
+  if (angleOffCentre < 0 || (angleOffCentre === 0 && shotNumber === 1)) {
+    var offset = lookVector.multiply(new Victor(50, 50)).rotateByDeg(270)
+    console.log(angleOffCentre, 'is less than or equal to 0:', 'offset 2', offset)
+    startPosition = startPosition.add(offset)
+  }
+
+  startPosition.add(shotVector)
+
+  var bullet = Matter.Bodies.circle(startPosition.x, startPosition.y, 1)
+
+  bullet.isStatic = true
+
+  //Matter.Body.applyForce(bullet, startPosition, shotVector.divide({ x: 50000, y: 50000 }))
   bullet.label = 'bullet'
   bullet.shooterId = player._id
   bullet.frictionAir = 0
@@ -217,13 +240,13 @@ function initWorld () {
 }
 
 function initCollisionListeners () {
-  Matter.Events.on(RCEngine, 'collisionStart', function (e) {
-    e.pairs.forEach(function (pair) {
-      // Need to handle case that both bodies are bullets
-      if (pair.bodyA.label === 'bullet') handleBulletCollision(pair.bodyA, pair.bodyB)
-      if (pair.bodyB.label === 'bullet') handleBulletCollision(pair.bodyB, pair.bodyA)
-    })
-  })
+  // Matter.Events.on(RCEngine, 'collisionStart', function (e) {
+  //   e.pairs.forEach(function (pair) {
+  //     // Need to handle case that both bodies are bullets
+  //     if (pair.bodyA.label === 'bullet') handleBulletCollision(pair.bodyA, pair.bodyB)
+  //     if (pair.bodyB.label === 'bullet') handleBulletCollision(pair.bodyB, pair.bodyA)
+  //   })
+  // })
 }
 
 function handleBulletCollision (bullet, object) {
@@ -258,6 +281,7 @@ function addPlayerToStage (player) {
   var playerBody = getBodyForPlayer(player)
   console.log('Adding player', player.name, 'at', playerBody.position)
   Matter.World.addBody(RCEngine.world, playerBody)
+  console.log(playerBody)
 }
 
 function addBoundsToStage () {
@@ -338,6 +362,7 @@ function drawAimLine (center, angle, distance) {
 
 function clearAimLine () {
   UI.aimLine.clear()
+  UI.renderer.render(UI.stage)
 }
 
 function initHammer () {
@@ -348,15 +373,18 @@ function initHammer () {
 function waitForAim (cb) {
   hammer.off('panstart panend')
   hammer.on('panstart', function (e) {
+    var pos = getPlayer().position
+    var scale = $('#stage').innerWidth() / Config.world.boundsX
     var center = {
-      x: e.pointers[0].offsetX,
-      y: e.pointers[0].offsetY
+      x: pos.x * scale,
+      y: pos.y * scale
     }
     hammer.on('pan', function (e) {
       drawAimLine(center, e.angle, e.distance)
     })
   })
   hammer.on('panend', function (e) {
+    clearAimLine()
     hammer.off('panstart pan panend')
     cb(e.angle)
   })
