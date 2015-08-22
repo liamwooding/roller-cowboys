@@ -176,7 +176,6 @@ function createBullet (player, shotVector, lookVector, shotNumber) {
   // Lengthen the vector to be longer than player body's radius
   var startPosition = new Victor(player.position.x, player.position.y)
 
-  // PROBLEMS - when aiming left both angles turn out negative. Also, rotation needs investigating
   if (shotNumber === 0)
     startPosition.add(new Victor(0, 5).rotate(lookVector.angle()))
   if (shotNumber === 1)
@@ -230,13 +229,13 @@ function initWorld () {
 }
 
 function initCollisionListeners () {
-  // Matter.Events.on(RCEngine, 'collisionStart', function (e) {
-  //   e.pairs.forEach(function (pair) {
-  //     // Need to handle case that both bodies are bullets
-  //     if (pair.bodyA.label === 'bullet') handleBulletCollision(pair.bodyA, pair.bodyB)
-  //     if (pair.bodyB.label === 'bullet') handleBulletCollision(pair.bodyB, pair.bodyA)
-  //   })
-  // })
+  Matter.Events.on(RCEngine, 'collisionStart', function (e) {
+    e.pairs.forEach(function (pair) {
+      // Need to handle case that both bodies are bullets
+      if (pair.bodyA.label === 'bullet') handleBulletCollision(pair.bodyA, pair.bodyB)
+      if (pair.bodyB.label === 'bullet') handleBulletCollision(pair.bodyB, pair.bodyA)
+    })
+  })
 }
 
 function handleBulletCollision (bullet, object) {
@@ -319,9 +318,9 @@ function initUI () {
 }
 
 function startAiming () {
-  waitForAim(function (angle1) {
+  waitForAim(0, function (angle1) {
     console.log('got angle 1', angle1)
-    waitForAim(function (angle2) {
+    waitForAim(1, function (angle2) {
       console.log('got angle 2', angle2)
       var player = Players.findOne({ userId: Meteor.userId() })
       Meteor.call(
@@ -337,15 +336,19 @@ function startAiming () {
   })
 }
 
-function drawAimLine (center, angle, distance) {
+function drawAimLine (center, angle, distance, shotNumber) {
   var radians = angle * Math.PI / 180
+
+  var centerVector = new Victor(center.x, center.y)
+  if (shotNumber === 0) centerVector.add(new Victor(0, 7.5).rotate(radians))
+  if (shotNumber === 1) centerVector.add(new Victor(0, -7.5).rotate(radians))
 
   UI.aimLine.clear()
   UI.aimLine.lineStyle(1, 0xFFFFFF, 1)
-  UI.aimLine.moveTo(center.x, center.y)
+  UI.aimLine.moveTo(centerVector.x, centerVector.y)
   UI.aimLine.lineTo(
-    center.x + (50 * Math.cos(radians) * 2),
-    center.y + (50 * Math.sin(radians) * 2)
+    centerVector.x + (50 * Math.cos(radians) * 2),
+    centerVector.y + (50 * Math.sin(radians) * 2)
   )
   UI.renderer.render(UI.stage)
 }
@@ -360,7 +363,7 @@ function initHammer () {
   hammer.get('pan').set({ direction: Hammer.DIRECTION_ALL })
 }
 
-function waitForAim (cb) {
+function waitForAim (shotNumber, cb) {
   hammer.off('panstart panend')
   hammer.on('panstart', function (e) {
     var pos = getPlayer().position
@@ -370,7 +373,7 @@ function waitForAim (cb) {
       y: pos.y * scale
     }
     hammer.on('pan', function (e) {
-      drawAimLine(center, e.angle, e.distance)
+      drawAimLine(center, e.angle, e.distance, shotNumber)
     })
   })
   hammer.on('panend', function (e) {
@@ -382,4 +385,11 @@ function waitForAim (cb) {
 
 function getPlayer () {
   return Players.findOne({ userId: Meteor.userId() })
+}
+
+function getPlayerBody () {
+  var player = getPlayer()
+  return RCEngine.world.bodies.filter(function (body) {
+    return body.playerId === player._id
+  })[0]
 }
