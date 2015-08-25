@@ -124,7 +124,7 @@ function simulateTurn () {
   enableEngine(RCEngine)
 
   setTimeout(function () {
-    Matter.Events.on(RCEngine, 'afterTick', function () { //PROBLEM? This event listener goes beserk sometimes
+    Matter.Events.on(RCEngine, 'afterUpdate', function () { //PROBLEM? This event listener goes beserk sometimes
       cleanupEscapedObjects()
       var haveAllObjectsStopped = Matter.Composite.allBodies(RCEngine.world).every(function (body) {
         return body.isStatic || body.isSleeping
@@ -139,7 +139,7 @@ function simulateTurn () {
           return p.playerId && p.playerId === thisPlayer._id
         })[0]
         Meteor.call('declarePosition', thisPlayer._id, playerBody.position)
-        Matter.Events.off(RCEngine, 'afterTick')
+        Matter.Events.off(RCEngine, 'afterUpdate')
       }
     })
   }, 200)
