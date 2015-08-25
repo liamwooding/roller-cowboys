@@ -150,7 +150,15 @@ function cleanupEscapedObjects () {
     if  (body.bounds.min.x > RCEngine.world.bounds.max.x
       || body.bounds.max.x < RCEngine.world.bounds.min.x
       || body.bounds.min.y > RCEngine.world.bounds.max.y
-      || body.bounds.max.y < RCEngine.world.bounds.min.y) {
+      || body.bounds.max.y < RCEngine.world.bounds.min.y
+      || body.bounds.max.x === Number.MIN_VALUE
+      || body.bounds.max.y === Number.MIN_VALUE
+      || body.bounds.min.x === Number.MIN_VALUE
+      || body.bounds.min.y === Number.MIN_VALUE
+      || body.bounds.max.x === Number.MAX_VALUE
+      || body.bounds.max.y === Number.MAX_VALUE
+      || body.bounds.min.x === Number.MAX_VALUE
+      || body.bounds.min.y === Number.MAX_VALUE) {
       console.log('removing out-of-bounds body', body)
       Matter.World.remove(RCEngine.world, body)
       Matter.RenderPixi.clear(RCEngine.render)
