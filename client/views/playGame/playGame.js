@@ -1,10 +1,6 @@
 var RCEngine
 var hammer
-var UI = {
-  renderer: null,
-  stage: null,
-  aimLine: null
-}
+var UI = new Meteor.rollerCowboys.UI()
 var clientState
 // After adding a body, we should wait til the next frame to stop the engine.
 var disableEngineNextFrame = _.debounce(disableEngine, 34)
@@ -40,22 +36,24 @@ Template.playGame.onRendered(function () {
   })
 
   FlowRouter.subsReady('game', function () {
-    initEngine(function (engine) {
-      RCEngine = engine
-      initWorld(RCEngine)
-      initCollisionListeners(RCEngine)
-      initUI()
-      initHammer()
-      Players.find({ state: 'ready' }).fetch().forEach(addPlayerToStage)
-      disableEngineNextFrame()
+    FlowRouter.subsReady('players', function () {
+      initEngine(function (engine) {
+        RCEngine = engine
+        initWorld(RCEngine)
+        initCollisionListeners(RCEngine)
+        UI.initUI()
+        UI.initHammer()
+        Players.find({ state: 'ready' }).fetch().forEach(addPlayerToStage)
+        disableEngineNextFrame()
 
-      $(window).on('resize', resizeWorldAndUI)
-      resizeWorldAndUI()
-      $('#world').addClass('ready')
+        $(window).on('resize', UI.resizeWorldAndUI)
+        UI.resizeWorldAndUI()
+        $('#world').addClass('ready')
 
-      clientState = null
+        clientState = null
 
-      syncState(Games.findOne().state)
+        syncState(Games.findOne().state)
+      })
     })
   })
 })
@@ -91,7 +89,7 @@ function syncState (state) {
 
   switch (state) {
     case 'ready':
-      startAiming()
+      UI.startAiming(getPlayer())
       clientState = state
       return
     case 'waiting-for-moves':
@@ -309,99 +307,24 @@ function addBoundsToStage () {
   Matter.World.addBody(RCEngine.world, bottomWall)
 }
 
-function resizeWorldAndUI () {
-  var sceneWidth = $('#stage').innerWidth()
-  var sceneHeight = sceneWidth * 0.5
-  var scale = sceneWidth / Config.world.boundsX
+function addTerrainToStage () {
+  var numberOfRocks = getRandomInt(15, 40)
+  var rocks = []
+  for (var i = 0; i < numberOfRocks; i++) {
 
-  UI.renderer.resize(sceneWidth, sceneHeight)
-
-  $('#world').css({ transform: 'scale('+ scale +')' })
+  }
 }
 
-function initUI () {
-  UI.renderer = new PIXI.autoDetectRenderer(
-    $('#ui').innerWidth(),
-    $('#ui').innerHeight(),
-    {
-      antialias: true,
-      transparent: true,
-      autoResize: true
-    }
-  )
-  $('#ui').append(UI.renderer.view)
-  UI.stage = new PIXI.Container()
-
-  UI.aimLine = new PIXI.Graphics()
-  UI.stage.addChild(UI.aimLine)
-
-  UI.renderer.render(UI.stage)
+function createRock () {
+  // getFreePosition
+  // return Matter.Bodies.polygon(x, y, getRandomInt(3, 5), getRandomInt(5, 10), {
+  //   isStatic: true
+  // })
 }
 
-function startAiming () {
-  waitForAim(0, function (angle1) {
-    console.log('got angle 1', angle1)
-    waitForAim(1, function (angle2) {
-      console.log('got angle 2', angle2)
-      var player = Players.findOne({ userId: Meteor.userId() })
-      Meteor.call(
-        'declareMove',
-        player._id,
-        { 0: angle1, 1: angle2 },
-        function (err) {
-          if (err) return console.error(err)
-          console.log('declared move')
-        }
-      )
-    })
-  })
-}
+function getFreePosition (clearRadius) {
+  // Returns a random position where there are no objects
 
-function drawAimLine (center, angle, distance, shotNumber) {
-  var radians = angle * Math.PI / 180
-
-  var centerVector = new Victor(center.x, center.y)
-  if (shotNumber === 0) centerVector.add(new Victor(0, 7.5).rotate(radians))
-  if (shotNumber === 1) centerVector.add(new Victor(0, -7.5).rotate(radians))
-
-  UI.aimLine.clear()
-  UI.aimLine.lineStyle(1, 0xFFFFFF, 1)
-  UI.aimLine.moveTo(centerVector.x, centerVector.y)
-  UI.aimLine.lineTo(
-    centerVector.x + (50 * Math.cos(radians) * 2),
-    centerVector.y + (50 * Math.sin(radians) * 2)
-  )
-  UI.renderer.render(UI.stage)
-}
-
-function clearAimLine () {
-  UI.aimLine.clear()
-  UI.renderer.render(UI.stage)
-}
-
-function initHammer () {
-  hammer = new Hammer($('#ui')[0])
-  hammer.get('pan').set({ direction: Hammer.DIRECTION_ALL })
-}
-
-function waitForAim (shotNumber, cb) {
-  hammer.off('panstart panend')
-  hammer.on('panstart', function (e) {
-    var pos = getPlayer().position
-    var scale = $('#stage').innerWidth() / Config.world.boundsX
-    var center = {
-      x: pos.x * scale,
-      y: pos.y * scale
-    }
-    hammer.on('pan', function (e) {
-      drawAimLine(center, e.angle, e.distance, shotNumber)
-    })
-  })
-  hammer.on('panend', function (e) {
-    clearAimLine()
-    hammer.off('panstart pan panend')
-    cb(e.angle)
-  })
 }
 
 function getPlayer () {
@@ -413,4 +336,8 @@ function getPlayerBody () {
   return RCEngine.world.bodies.filter(function (body) {
     return body.playerId === player._id
   })[0]
+}
+
+function getRandomInt(min, max) {
+  return Math.floor(Math.random() * (max - min + 1)) + min
 }

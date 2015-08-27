@@ -1,102 +1,113 @@
-Meteor.RC = Meteor.RC || {}
+Meteor.rollerCowboys = Meteor.rollerCowboys || {}
 
-var aimLine
+Meteor.rollerCowboys.UI = function () {
+  var self = this
+  self.renderer
+  self.stage
+  self.aimLine
+}
 
-Meteor.RC.UI = {
-  renderer: null,
-  stage: null,
-  initUI: function () {
-    this.renderer = new PIXI.autoDetectRenderer(
-      $('#ui').innerWidth(),
-      $('#ui').innerHeight(),
-      {
-        antialias: true,
-        transparent: true,
-        autoResize: true
-      }
-    )
-    $('#ui').append(this.renderer.view)
-    this.stage = new PIXI.Container()
+var UI = Meteor.rollerCowboys.UI
 
-    aimLine = new PIXI.Graphics()
-    this.stage.addChild(aimLine)
+UI.prototype.initUI = function () {
+  var self = this
+  self.renderer = new PIXI.autoDetectRenderer(
+    $('#ui').innerWidth(),
+    $('#ui').innerHeight(),
+    {
+      antialias: true,
+      transparent: true,
+      autoResize: true
+    }
+  )
+  $('#ui').append(self.renderer.view)
+  self.stage = new PIXI.Container()
 
-    this.renderer.render(this.stage)
-  },
+  self.aimLine = new PIXI.Graphics()
+  self.stage.addChild(self.aimLine)
 
-  drawAimLine: function (center, angle, distance, shotNumber) {
-    var radians = angle * Math.PI / 180
+  self.renderer.render(self.stage)
+}
 
-    var centerVector = new Victor(center.x, center.y)
-    if (shotNumber === 0) centerVector.add(new Victor(0, 7.5).rotate(radians))
-    if (shotNumber === 1) centerVector.add(new Victor(0, -7.5).rotate(radians))
+UI.prototype.resizeWorldAndUI = function () {
+  var self = this
+  var sceneWidth = $('#stage').innerWidth()
+  var sceneHeight = sceneWidth * 0.5
+  var scale = sceneWidth / Config.world.boundsX
 
-    aimLine.clear()
-    aimLine.lineStyle(1, 0xFFFFFF, 1)
-    aimLine.moveTo(centerVector.x, centerVector.y)
-    aimLine.lineTo(
-      centerVector.x + (50 * Math.cos(radians) * 2),
-      centerVector.y + (50 * Math.sin(radians) * 2)
-    )
-    this.renderer.render(this.stage)
-  },
+  self.renderer.resize(sceneWidth, sceneHeight)
 
-  clearAimLine: function () {
-    aimLine.clear()
-    this.renderer.render(this.stage)
-  },
+  $('#world').css({ transform: 'scale('+ scale +')' })
+}
 
-  resizeWorldAndUI: function () {
-    var sceneWidth = $('#stage').innerWidth()
-    var sceneHeight = sceneWidth * 0.5
-    var scale = sceneWidth / Config.world.boundsX
+UI.prototype.startAiming = function (player) {
+  var self = this
+  console.log('start aiming for player:', player)
+  waitForAim.apply(self, [player, 0, function (angle1) {
+    console.log('got angle 1', angle1)
+    waitForAim.apply(self, [player, 1, function (angle2) {
+      console.log('got angle 2', angle2)
+      var player = Players.findOne({ userId: Meteor.userId() })
+      Meteor.call(
+        'declareMove',
+        player._id,
+        { 0: angle1, 1: angle2 },
+        function (err) {
+          if (err) return console.error(err)
+          console.log('declared move')
+        }
+      )
+    }])
+  }])
+}
 
-    this.renderer.resize(sceneWidth, sceneHeight)
+UI.prototype.initHammer = function () {
+  hammer = new Hammer($('#ui')[0])
+  hammer.get('pan').set({ direction: Hammer.DIRECTION_ALL })
+}
 
-    $('#world').css({ transform: 'scale('+ scale +')' })
-  },
+function drawAimLine (center, angle, distance, shotNumber) {
+  var self = this
+  var radians = angle * Math.PI / 180
 
-  startAiming: function (player) {
-    this.waitForAim(player, 0, function (angle1) {
-      console.log('got angle 1', angle1)
-      this.waitForAim(player, 1, function (angle2) {
-        console.log('got angle 2', angle2)
-        var player = Players.findOne({ userId: Meteor.userId() })
-        Meteor.call(
-          'declareMove',
-          player._id,
-          { 0: angle1, 1: angle2 },
-          function (err) {
-            if (err) return console.error(err)
-            console.log('declared move')
-          }
-        )
-      })
+  var centerVector = new Victor(center.x, center.y)
+  if (shotNumber === 0) centerVector.add(new Victor(0, 7.5).rotate(radians))
+  if (shotNumber === 1) centerVector.add(new Victor(0, -7.5).rotate(radians))
+
+  self.aimLine.clear()
+  self.aimLine.lineStyle(1, 0xFFFFFF, 1)
+  self.aimLine.moveTo(centerVector.x, centerVector.y)
+  self.aimLine.lineTo(
+    centerVector.x + (50 * Math.cos(radians) * 2),
+    centerVector.y + (50 * Math.sin(radians) * 2)
+  )
+  self.renderer.render(self.stage)
+}
+
+function clearAimLine () {
+  var self = this
+  self.aimLine.clear()
+  self.renderer.render(self.stage)
+}
+
+function waitForAim (player, shotNumber, cb) {
+  var self = this
+  console.log(self, player)
+  hammer.off('panstart panend')
+  hammer.on('panstart', function (e) {
+    var pos = player.position
+    var scale = $('#stage').innerWidth() / Config.world.boundsX
+    var center = {
+      x: pos.x * scale,
+      y: pos.y * scale
+    }
+    hammer.on('pan', function (e) {
+      drawAimLine.apply(self, [center, e.angle, e.distance, shotNumber])
     })
-  },
-
-  initHammer: function () {
-    hammer = new Hammer($('#ui')[0])
-    hammer.get('pan').set({ direction: Hammer.DIRECTION_ALL })
-  },
-
-  waitForAim: function  (player, shotNumber, cb) {
-    hammer.off('panstart panend')
-    hammer.on('panstart', function (e) {
-      var pos = player.position
-      var scale = $('#stage').innerWidth() / Config.world.boundsX
-      var center = {
-        x: pos.x * scale,
-        y: pos.y * scale
-      }
-      hammer.on('pan', function (e) {
-        Meteor.RC.UI.drawAimLine(center, e.angle, e.distance, shotNumber)
-      })
-    })
-    hammer.on('panend', function (e) {
-      Meteor.RC.UI.clearAimLine()
-      hammer.off('panstart pan panend')
-      cb(e.angle)
-    })
-  }
+  })
+  hammer.on('panend', function (e) {
+    clearAimLine.apply(self)
+    hammer.off('panstart pan panend')
+    cb(e.angle)
+  })
 }
