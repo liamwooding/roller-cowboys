@@ -115,9 +115,7 @@ function simulateTurn () {
     if (!playerBody) return console.error('No body found for player:', player)
 
     var kickbackVector = applyKickbackToPlayer(playerBody, player)
-    console.log('kickbackVector:', kickbackVector)
     var lookVector = kickbackVector.clone().normalize().invert()
-    console.log('lookvector:', lookVector)
     createBulletsForPlayer(player, lookVector)
   })
 
@@ -194,8 +192,6 @@ function createBulletsForPlayer (player, lookVector) {
 }
 
 function createBullet (player, shotVector, lookVector, shotNumber) {
-  console.log('creating bullet')
-  // Lengthen the vector to be longer than player body's radius
   var startPosition = new Victor(player.position.x, player.position.y)
 
   if (shotNumber === 0)
@@ -212,7 +208,6 @@ function createBullet (player, shotVector, lookVector, shotNumber) {
   bullet.shooterId = player._id
   bullet.frictionAir = 0
   Matter.World.addBody(RCEngine.world, bullet)
-  console.log('bullet',bullet)
 }
 
 function enableEngine (engine) {
