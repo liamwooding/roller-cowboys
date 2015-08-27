@@ -42,11 +42,8 @@ UI.prototype.resizeWorldAndUI = function () {
 
 UI.prototype.startAiming = function (player) {
   var self = this
-  console.log('start aiming for player:', player)
   waitForAim.apply(self, [player, 0, function (angle1) {
-    console.log('got angle 1', angle1)
     waitForAim.apply(self, [player, 1, function (angle2) {
-      console.log('got angle 2', angle2)
       var player = Players.findOne({ userId: Meteor.userId() })
       Meteor.call(
         'declareMove',
@@ -54,7 +51,6 @@ UI.prototype.startAiming = function (player) {
         { 0: angle1, 1: angle2 },
         function (err) {
           if (err) return console.error(err)
-          console.log('declared move')
         }
       )
     }])
@@ -92,7 +88,6 @@ function clearAimLine () {
 
 function waitForAim (player, shotNumber, cb) {
   var self = this
-  console.log(self, player)
   hammer.off('panstart panend')
   hammer.on('panstart', function (e) {
     var pos = player.position
