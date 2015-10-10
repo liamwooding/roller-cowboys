@@ -44,6 +44,7 @@ Template.playGame.onRendered(function () {
         UI.initUI()
         UI.initHammer()
         Players.find({ state: 'ready' }).fetch().forEach(addPlayerToStage)
+        addTerrainToStage()
         disableEngineNextFrame()
 
         $(window).on('resize', UI.resizeWorldAndUI)
@@ -309,35 +310,54 @@ function addBoundsToStage () {
 
 function addTerrainToStage () {
   var numberOfRocks = getRandomInt(15, 40)
-  var rocks = []
+  disableEngine()
   for (var i = 0; i < numberOfRocks; i++) {
-
+    Matter.World.addBody(RCEngine.world, createRock())
   }
+  enableEngine(RCEngine)
 }
 
 function createRock () {
-  // getFreePosition
-  // return Matter.Bodies.polygon(x, y, getRandomInt(3, 5), getRandomInt(5, 10), {
-  //   isStatic: true
-  // })
+  var radius = getRandomInt(3, 8)
+  var position = getFreePosition(radius)
+  return Matter.Bodies.polygon(position.x, position.y, getRandomInt(5, 9), radius, {
+    isStatic: true
+  })
 }
 
 function getFreePosition (clearRadius) {
-  // Returns a random position where there are no objects
+  // Creates a circle of a given radius and places it in a random location
+  // Returns the first position where the circle isn't touching anything
+  var testerBody = Matter.Bodies.circle(0, 0, clearRadius, { isStatic: true })
+  var freePosition = null
 
+  while (freePosition === null) {
+    Matter.Body.setPosition(testerBody, getRandomPosition())
+    var testerBounds = testerBody.bounds
+    var foundOverlap = RCEngine.world.bodies.forEach(function (body) {
+      return Matter.Bounds.overlaps(body.bounds, testerBounds)
+    })
+    if (!foundOverlap) freePosition = testerBody.position
+  }
+  console.log('free position:', freePosition)
+  return freePosition
 }
 
 function getPlayer () {
   return Players.findOne({ userId: Meteor.userId() })
 }
-
 function getPlayerBody () {
   var player = getPlayer()
   return RCEngine.world.bodies.filter(function (body) {
     return body.playerId === player._id
   })[0]
 }
-
 function getRandomInt(min, max) {
   return Math.floor(Math.random() * (max - min + 1)) + min
+}
+function getRandomPosition () {
+  return {
+    x: getRandomInt(0, Config.world.boundsX),
+    y: getRandomInt(0, Config.world.boundsY)
+  }
 }
