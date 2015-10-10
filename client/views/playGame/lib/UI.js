@@ -71,7 +71,7 @@ function drawAimLine (center, angle, distance, shotNumber) {
   if (shotNumber === 1) centerVector.add(new Victor(0, -7.5).rotate(radians))
 
   self.aimLine.clear()
-  self.aimLine.lineStyle(1, 0xFFFFFF, 1)
+  self.aimLine.lineStyle(1, 0x9C3614, 1)
   self.aimLine.moveTo(centerVector.x, centerVector.y)
   self.aimLine.lineTo(
     centerVector.x + (50 * Math.cos(radians) * 2),

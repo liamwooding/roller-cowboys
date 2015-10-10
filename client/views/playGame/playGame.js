@@ -200,7 +200,13 @@ function createBullet (player, shotVector, lookVector, shotNumber) {
 
   startPosition.add(shotVector)
 
-  var bullet = Matter.Bodies.circle(startPosition.x, startPosition.y, 1)
+  var bullet = Matter.Bodies.circle(startPosition.x, startPosition.y, 1, {
+    render: {
+      lineWidth: 1,
+      strokeStyle: '#9C3614',
+      fillStyle: '#9C3614'
+    }
+  })
 
   Matter.Body.applyForce(bullet, startPosition, shotVector.divide({ x: 50000, y: 50000 }))
   bullet.label = 'bullet'
@@ -281,6 +287,7 @@ function updatePositionOfPlayer (playerId, position) {
 function getBodyForPlayer (player) {
   if (!player.position || (!player.position.x && !player.position.y)) return console.error('No position for player:', player)
   var body = Matter.Bodies.circle(player.position.x, player.position.y, 10, {
+    restitution: 0.6,
     render: {
       lineWidth: 0,
       fillStyle: '#FA9600'
@@ -305,13 +312,20 @@ function addBoundsToStage () {
     x: Config.world.boundsX,
     y: Config.world.boundsY
   }
-  var leftWall = Matter.Bodies.rectangle(0, bounds.y / 2, 10, bounds.y, { isStatic: true })
+  var wallOptions = {
+    isStatic: true,
+    render: {
+      lineWidth: 0,
+      fillStyle: '#FF521D'
+    }
+  }
+  var leftWall = Matter.Bodies.rectangle(0, bounds.y / 2, 10, bounds.y, wallOptions)
   Matter.World.addBody(RCEngine.world, leftWall)
-  var rightWall = Matter.Bodies.rectangle(bounds.x, bounds.y / 2, 10, bounds.y, { isStatic: true })
+  var rightWall = Matter.Bodies.rectangle(bounds.x, bounds.y / 2, 10, bounds.y, wallOptions)
   Matter.World.addBody(RCEngine.world, rightWall)
-  var topWall = Matter.Bodies.rectangle(bounds.x / 2, 0, bounds.x, 10, { isStatic: true })
+  var topWall = Matter.Bodies.rectangle(bounds.x / 2, 0, bounds.x, 10, wallOptions)
   Matter.World.addBody(RCEngine.world, topWall)
-  var bottomWall = Matter.Bodies.rectangle(bounds.x / 2, bounds.y, bounds.x, 10, { isStatic: true })
+  var bottomWall = Matter.Bodies.rectangle(bounds.x / 2, bounds.y, bounds.x, 10, wallOptions)
   Matter.World.addBody(RCEngine.world, bottomWall)
 }
 
