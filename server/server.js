@@ -22,7 +22,14 @@ Meteor.startup(function () {
   })
   Games.allow({
     insert: function () { return true },
-    update: function () { return true },
+    update: function (userId, game, fieldNames, modifier) {
+      if (!userId) return false
+      if (!Players.findOne({ gameId: game._id, userId: userId })) return false
+      if (fieldNames.length === 1 && fieldNames.indexOf('terrain') === 0) {
+        return game.terrain ? false : true
+      }
+      return false
+    },
     remove: function () { return true }
   })
 })

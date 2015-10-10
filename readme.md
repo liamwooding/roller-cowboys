@@ -13,3 +13,7 @@
 - Bullets explode on contact with each other, sending nearby players rolling a long way, but causing no damage
   - This can be used to propel oneself quickly, by aiming both guns at a central point in front of the player
   - Should this explosion affect other bullets? Could be used as a shield in a pinch.
+
+## Style notes
+
+Current colour palette is taken from [colourlovers.com](http://www.colourlovers.com/palette/1858807/Wild_West)

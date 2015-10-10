@@ -44,7 +44,7 @@ Template.playGame.onRendered(function () {
         UI.initUI()
         UI.initHammer()
         Players.find({ state: 'ready' }).fetch().forEach(addPlayerToStage)
-        addTerrainToStage()
+        if (!Games.findOne().terrain) generateTerrain()
         disableEngineNextFrame()
 
         $(window).on('resize', UI.resizeWorldAndUI)
@@ -253,7 +253,6 @@ function initWorld () {
   RCEngine.world.bounds.min.x = RCEngine.world.bounds.min.y = 0
   RCEngine.world.bounds.max.x = Config.world.boundsX
   RCEngine.world.bounds.max.y = Config.world.boundsY
-  addBoundsToStage()
 }
 
 function initCollisionListeners () {
@@ -307,7 +306,18 @@ function addPlayerToStage (player) {
   console.log(playerBody)
 }
 
-function addBoundsToStage () {
+function generateTerrain () {
+  var numberOfRocks = getRandomInt(10, 20)
+  disableEngine()
+  generateWalls()
+  for (var i = 0; i < numberOfRocks; i++) {
+    Matter.World.addBody(RCEngine.world, createRock())
+  }
+  serializeTerrain()
+  enableEngine(RCEngine)
+}
+
+function generateWalls () {
   var bounds = {
     x: Config.world.boundsX,
     y: Config.world.boundsY
@@ -327,15 +337,6 @@ function addBoundsToStage () {
   Matter.World.addBody(RCEngine.world, topWall)
   var bottomWall = Matter.Bodies.rectangle(bounds.x / 2, bounds.y, bounds.x, 10, wallOptions)
   Matter.World.addBody(RCEngine.world, bottomWall)
-}
-
-function addTerrainToStage () {
-  var numberOfRocks = getRandomInt(10, 20)
-  disableEngine()
-  for (var i = 0; i < numberOfRocks; i++) {
-    Matter.World.addBody(RCEngine.world, createRock())
-  }
-  enableEngine(RCEngine)
 }
 
 function createRock () {
@@ -361,9 +362,14 @@ function getFreePosition (clearRadius) {
       return Matter.Bounds.overlaps(body.bounds, testerBounds)
     })
     if (!foundOverlap) freePosition = testerBody.position
+    else console.log('rejected position:', testerBody.position)
   }
   console.log('free position:', freePosition)
   return freePosition
+}
+
+function serializeTerrain () {
+  console.log('serializing terrain...')
 }
 
 function getPlayer () {
