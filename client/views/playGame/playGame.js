@@ -228,6 +228,8 @@ function initEngine (cb) {
       element: document.querySelector('#world'),
       controller: Matter.RenderPixi,
       options: {
+        background: '#FCE7B2',
+        wireframes: false,
         width: Config.world.boundsX,
         height: Config.world.boundsY
       }
@@ -278,7 +280,12 @@ function updatePositionOfPlayer (playerId, position) {
 
 function getBodyForPlayer (player) {
   if (!player.position || (!player.position.x && !player.position.y)) return console.error('No position for player:', player)
-  var body = Matter.Bodies.circle(player.position.x, player.position.y, 10)
+  var body = Matter.Bodies.circle(player.position.x, player.position.y, 10, {
+    render: {
+      lineWidth: 0,
+      fillStyle: '#FA9600'
+    }
+  })
   body.label = 'player'
   body.playerId = player._id
   body.frictionAir = 0.1
@@ -309,7 +316,7 @@ function addBoundsToStage () {
 }
 
 function addTerrainToStage () {
-  var numberOfRocks = getRandomInt(15, 40)
+  var numberOfRocks = getRandomInt(10, 20)
   disableEngine()
   for (var i = 0; i < numberOfRocks; i++) {
     Matter.World.addBody(RCEngine.world, createRock())
@@ -318,23 +325,25 @@ function addTerrainToStage () {
 }
 
 function createRock () {
-  var radius = getRandomInt(3, 8)
+  var radius = getRandomInt(10, 20)
   var position = getFreePosition(radius)
   return Matter.Bodies.polygon(position.x, position.y, getRandomInt(5, 9), radius, {
-    isStatic: true
+    isStatic: true,
+    render: {
+      lineWidth: 0,
+      fillStyle: '#FF521D'
+    }
   })
 }
 
 function getFreePosition (clearRadius) {
-  // Creates a circle of a given radius and places it in a random location
-  // Returns the first position where the circle isn't touching anything
   var testerBody = Matter.Bodies.circle(0, 0, clearRadius, { isStatic: true })
   var freePosition = null
 
   while (freePosition === null) {
     Matter.Body.setPosition(testerBody, getRandomPosition())
     var testerBounds = testerBody.bounds
-    var foundOverlap = RCEngine.world.bodies.forEach(function (body) {
+    var foundOverlap = RCEngine.world.bodies.some(function (body) {
       return Matter.Bounds.overlaps(body.bounds, testerBounds)
     })
     if (!foundOverlap) freePosition = testerBody.position
