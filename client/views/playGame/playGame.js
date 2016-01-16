@@ -45,6 +45,7 @@ Template.playGame.onRendered(function () {
         UI.initHammer()
         Players.find({ state: 'ready' }).fetch().forEach(addPlayerToStage)
         if (!Games.findOne().terrain) generateTerrain()
+        else deserializeTerrain()
         disableEngineNextFrame()
 
         $(window).on('resize', UI.resizeWorldAndUI)
@@ -339,14 +340,19 @@ function generateWalls () {
   Matter.World.addBody(RCEngine.world, bottomWall)
 }
 
-function createRock () {
-  var radius = getRandomInt(10, 20)
-  var position = getFreePosition(radius)
-  return Matter.Bodies.polygon(position.x, position.y, getRandomInt(5, 9), radius, {
+function createRock (rock) {
+  var radius = rock ? rock.radius : getRandomInt(10, 20)
+  var position = rock ? rock.position : getFreePosition(radius)
+  var vertices = rock ? rock.vertices : getRandomInt(5, 9)
+  return Matter.Bodies.polygon(position.x, position.y, vertices, radius, {
     isStatic: true,
     render: {
       lineWidth: 0,
       fillStyle: '#FF521D'
+    },
+    label: 'rock',
+    data: {
+      radius: radius
     }
   })
 }
@@ -362,14 +368,32 @@ function getFreePosition (clearRadius) {
       return Matter.Bounds.overlaps(body.bounds, testerBounds)
     })
     if (!foundOverlap) freePosition = testerBody.position
-    else console.log('rejected position:', testerBody.position)
   }
-  console.log('free position:', freePosition)
   return freePosition
 }
 
 function serializeTerrain () {
-  console.log('serializing terrain...')
+  console.log('Serializing terrain')
+  var rocks = RCEngine.world.bodies.filter(function (body) { return body.label === 'rock' })
+    .map(function (rock) {
+      return {
+        position: rock.position,
+        vertices: rock.vertices.length,
+        radius: rock.data.radius
+      }
+    })
+  Meteor.call('declareTerrain', Games.findOne()._id, rocks)
+}
+
+function deserializeTerrain () {
+  disableEngine()
+  generateWalls()
+  var terrain = Games.findOne().terrain
+  terrain.forEach(function (rock) {
+    console.log('deserializing rock:', rock)
+    Matter.World.addBody(RCEngine.world, createRock(rock))
+  })
+  enableEngine(RCEngine)
 }
 
 function getPlayer () {

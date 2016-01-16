@@ -37,10 +37,10 @@ Meteor.methods({
   },
   declareMove: function (playerId, action) {
     if (!Meteor.isServer) return
-    var context = this
+    var ctx = this
     var player = Players.findOne({ _id: playerId })
     if (!player) throw new Meteor.Error('404')
-    if (context.userId !== player.userId) throw new Meteor.Error('401')
+    if (ctx.userId !== player.userId) throw new Meteor.Error('401')
 
     var game = Games.findOne({ _id: player.gameId })
     if (game.state !== 'ready') throw new Meteor.Error('403')
@@ -75,11 +75,11 @@ Meteor.methods({
   },
   declarePosition: function (playerId, position) {
     if (!Meteor.isServer) return
-    var context = this
+    var ctx = this
     var player = Players.findOne({ _id: playerId })
     if (!player) throw new Meteor.Error('404')
     console.log('updating player with state', player.state)
-    if (context.userId !== player.userId) throw new Meteor.Error('401')
+    if (ctx.userId !== player.userId) throw new Meteor.Error('401')
 
     Players.update(
       { _id: playerId, state: { $ne: 'hit' } },
@@ -123,6 +123,24 @@ Meteor.methods({
       }
     )
   },
+  declareTerrain: function (gameId, terrain) {
+    if (!Meteor.isServer) return
+    var ctx = this
+    var game = Games.findOne({ _id: gameId })
+    if (game.terrain) throw new Meteor.Error('409', 'Game already has terrain')
+    Games.update(
+      { _id: gameId },
+      {
+        $set: {
+          terrain: terrain
+        }
+      },
+      function (err, affected) {
+        if (err) throw new Meteor.Error('500', err)
+        console.log('Added terrain to game with ID', gameId)
+      }
+    )
+  },
   joinGame: function (gameId, userId) {
     if (!Meteor.isServer) return
     var existingPlayerCount = Players.find({ gameId: gameId, userId: userId }).count()
@@ -144,7 +162,7 @@ Meteor.methods({
   },
   hitPlayer: function (shooterId, targetId) {
     if (!Meteor.isServer) return
-    var context = this
+    var ctx = this
     Players.update({ _id: shooterId }, { $inc: { score: 1 } }, function (err, affected) {
       if (err) throw new Meteor.Error('500', err)
       Players.update(
