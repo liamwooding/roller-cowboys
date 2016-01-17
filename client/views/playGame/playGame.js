@@ -308,6 +308,7 @@ function addPlayerToStage (player) {
 }
 
 function generateTerrain () {
+  console.log('Generating terrain')
   var numberOfRocks = getRandomInt(10, 20)
   disableEngine()
   generateWalls()
@@ -386,11 +387,11 @@ function serializeTerrain () {
 }
 
 function deserializeTerrain () {
+  console.log('Deserializing terrain')
   disableEngine()
   generateWalls()
   var terrain = Games.findOne().terrain
   terrain.forEach(function (rock) {
-    console.log('deserializing rock:', rock)
     Matter.World.addBody(RCEngine.world, createRock(rock))
   })
   enableEngine(RCEngine)

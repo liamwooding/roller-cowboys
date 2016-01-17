@@ -90,6 +90,7 @@ function waitForAim (player, shotNumber, cb) {
   var self = this
   hammer.off('panstart panend')
   hammer.on('panstart', function (e) {
+    if (getPlayerState() !== 'ready') return console.log('Canceling aim start')
     var pos = player.position
     var scale = $('#stage').innerWidth() / Config.world.boundsX
     var center = {
@@ -99,10 +100,15 @@ function waitForAim (player, shotNumber, cb) {
     hammer.on('pan', function (e) {
       drawAimLine.apply(self, [center, e.angle, e.distance, shotNumber])
     })
+    hammer.on('panend', function (e) {
+      if (getPlayerState() !== 'ready') return console.log('Canceling aim end')
+      clearAimLine.apply(self)
+      hammer.off('panstart pan panend')
+      cb(e.angle)
+    })
   })
-  hammer.on('panend', function (e) {
-    clearAimLine.apply(self)
-    hammer.off('panstart pan panend')
-    cb(e.angle)
-  })
+}
+
+function getPlayerState () {
+  return Players.findOne({ userId: Meteor.userId() }).state
 }
