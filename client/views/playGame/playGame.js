@@ -69,7 +69,10 @@ Template.playGame.onDestroyed(function () {
 
 Template.playGame.events({
   'click .btn-join-game': function () {
-    Meteor.call('joinGame', Games.findOne()._id, Meteor.userId())
+    Meteor.call('joinGame', Games.findOne()._id, Meteor.userId(), function (err) {
+      if (err) return console.error(err)
+      syncState(Games.findOne().state)
+    })
   }
 })
 
@@ -87,7 +90,6 @@ Template.playGame.helpers({
 
 function syncState (state) {
   console.log('syncing client state', clientState, 'with game state', state)
-  if (state === clientState) return
 
   switch (state) {
     case 'ready':
@@ -109,10 +111,11 @@ function simulateTurn () {
   var players = Players.find().fetch()
 
   players.forEach(function (player) {
-    var playerBody = RCEngine.world.bodies.filter(function (p) {
-      return p.playerId && p.playerId === player._id
-    })[0]
-    if (!playerBody) return console.error('No body found for player:', player)
+    var playerBody = getPlayerBody(player)
+    if (!playerBody) {
+      addPlayerToStage(player)
+      playerBody = getPlayerBody(player)
+    }
 
     var kickbackVector = applyKickbackToPlayer(playerBody, player)
     var lookVector = kickbackVector.clone().normalize().invert()
@@ -122,7 +125,7 @@ function simulateTurn () {
   enableEngine(RCEngine)
 
   setTimeout(function () {
-    Matter.Events.on(RCEngine, 'afterUpdate', function () { //PROBLEM? This event listener goes beserk sometimes
+    Matter.Events.on(RCEngine, 'afterUpdate', function () {
       cleanupEscapedObjects()
       var haveAllObjectsStopped = Matter.Composite.allBodies(RCEngine.world).every(function (body) {
         return body.isStatic || body.isSleeping
@@ -201,7 +204,7 @@ function createBullet (player, shotVector, lookVector, shotNumber) {
 
   startPosition.add(shotVector)
 
-  var bullet = Matter.Bodies.circle(startPosition.x, startPosition.y, 1, {
+  var bullet = Matter.Bodies.circle(startPosition.x, startPosition.y, 2, {
     render: {
       lineWidth: 1,
       strokeStyle: '#9C3614',
@@ -209,7 +212,7 @@ function createBullet (player, shotVector, lookVector, shotNumber) {
     }
   })
 
-  Matter.Body.applyForce(bullet, startPosition, shotVector.divide({ x: 50000, y: 50000 }))
+  Matter.Body.applyForce(bullet, startPosition, shotVector.divide({ x: 30000, y: 30000 }))
   bullet.label = 'bullet'
   bullet.shooterId = player._id
   bullet.frictionAir = 0
@@ -304,7 +307,6 @@ function addPlayerToStage (player) {
   var playerBody = getBodyForPlayer(player)
   console.log('Adding player', player.name, 'at', playerBody.position)
   Matter.World.addBody(RCEngine.world, playerBody)
-  console.log(playerBody)
 }
 
 function generateTerrain () {
@@ -400,8 +402,8 @@ function deserializeTerrain () {
 function getPlayer () {
   return Players.findOne({ userId: Meteor.userId() })
 }
-function getPlayerBody () {
-  var player = getPlayer()
+function getPlayerBody (player) {
+  if (!player) player = getPlayer()
   return RCEngine.world.bodies.filter(function (body) {
     return body.playerId === player._id
   })[0]
